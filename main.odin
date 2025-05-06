@@ -13,6 +13,7 @@ window: ^sdl.Window
 renderer: ^sdl.Renderer
 
 main :: proc() {
+	// init_program()
 	ok := sdl.SetAppMetadata("Elk", "0.1", "com.elk.charlie"); assert(ok)
 	ok = sdl.Init({.VIDEO}); assert(ok)
 	ok = sdl.CreateWindowAndRenderer("Elk", 640, 480, {}, &window, &renderer); assert(ok)
