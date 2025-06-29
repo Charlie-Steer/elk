@@ -42,6 +42,7 @@ View :: struct {
 Font :: struct {
 	handle: ^ttf.Font,
 	size: i32,
+	height: i32,
 }
 
 window := Window {
@@ -54,14 +55,14 @@ text := Text {
 }
 view: View
 font := Font{
-	size = 12
+	size = 13,
 }
 
 Margins :: struct {
 	up, down, left, right: f32
 }
-// margins := Margins{ 10, 0, 20, 0 }
-margins := Margins{ 0, 0, 0, 0 }
+margins := Margins{ 10, 0, 20, 0 }
+// margins := Margins{ 0, 0, 0, 0 }
 
 renderer: ^sdl.Renderer
 
@@ -87,6 +88,8 @@ main :: proc() {
 	font.handle = ttf.OpenFont("/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf", f32(font.size))
 	if (font.handle == nil) do error_and_exit()
 	defer ttf.CloseFont(font.handle)
+	font.height = ttf.GetFontLineSkip(font.handle)
+	fmt.println(font.height)
 
 	text_surface := ttf.RenderText_Blended_Wrapped(font.handle, text_string, 0, colors.WHITE, i32(window.w - margins.left - margins.right))
 	if (text_surface == nil) do error_and_exit()
@@ -111,7 +114,14 @@ main :: proc() {
 			case .QUIT:
 				window.should_close = true
 			case .KEY_DOWN:
-				if e.key.scancode == .ESCAPE || e.key.scancode == .Q {
+				keycode := sdl.GetKeyFromScancode(e.key.scancode, e.key.mod, false)
+				if keycode == 'J' {
+					view.line += (window.h / f32(font.height)) / 2
+				}
+				else if keycode == 'K' {
+					view.line -= (window.h / f32(font.height)) / 2
+				}
+				else if e.key.scancode == .ESCAPE || e.key.scancode == .Q {
 					window.should_close = true
 				}
 				else if e.key.scancode == .J {
@@ -135,9 +145,9 @@ main :: proc() {
 		if (first_iteration) do fmt.printfln("w: %d, h: %d\n", w, h)
 
 		// NOTE: text.size is a bad stimation. The text has a diffrent width and heigth.
-		view.position = { view.column, view.line } * f32(font.size)
-		view.position.y = view.line * f32(font.size)
-		fmt.printfln("col: %v, line: %v, position: %v", view.column, view.line, view.position)
+		view.position = { view.column, view.line } * f32(font.height)
+		view.position.y = view.line * f32(font.height)
+		// fmt.printfln("col: %v, line: %v, position: %v", view.column, view.line, view.position)
 
 		render_text(text.texture)
 
@@ -160,39 +170,34 @@ Text_Texture :: struct {
 render_text :: proc(texture: ^sdl.Texture) {
 	text_texture := Text_Texture{ handle = texture }
 	sdl.GetTextureSize(text_texture.handle, &text_texture.w, &text_texture.h)
-	// sdl.GetTextureSize(transmute(^sdl.Texture)(&text_texture), &text_texture.w, &text_texture.h)
-	// src_rect
+
+	src_rect_y_position := clamp(view.position.y, 0, text_texture.h)
 	src_rect := sdl.FRect{
-		w = text_texture.w,
-		h = window.h,
 		x = 0,
-		y = clamp(view.line, 0, text_texture.h - window.h) * f32(font.size),
+		y = src_rect_y_position,
+		w = window.w,
+		h = min(window.h, text_texture.h - src_rect_y_position)
 	}
-	if (src_rect.y + src_rect.h > text_texture.h) {
-		src_rect.h = text_texture.h - src_rect.y
-		// fmt.println("src_rect.y < window.y")
-	}
-	// dst_rect
-	fmt.println(view.position.y)
-	fmt.println(view.position.y + window.h)
-	fmt.println(text_texture.h)
-	fmt.println(view.position.y + window.h - text_texture.h)
-	fmt.println()
 
 	dst_rect := sdl.FRect{
-		x = margins.left,
-		y = margins.up + view.line >= 0 ? 0 : -view.line * f32(font.size),
-		// y = margins.up + (window.h - src_rect.h),
-		w = (text_texture.w < window.w ? text_texture.w : window.w) - margins.right,
-		h = view.position.y + window.h <= text_texture.h ? window.h : window.h - (view.position.y + window.h - text_texture.h),
-		// h = (text_texture.h < window.h ? text_texture.h : window.h) - margins.down,
+		x = 0 + (margins.left),
+		y = view.position.y > 0 ? 0 : -view.position.y + (margins.up),
+		w = window.w - (margins.left + margins.right),
+		h = src_rect.h - (margins.up + margins.down),
 	}
-	// if (source_rect.h < window.h) {
-	// 	dst_rect.h = 
-	// }
-	sdl.RenderTexture(renderer, text_texture.handle, &src_rect, &dst_rect)
 
-	// TODO: width of text buffer should take margins into account.
+	background_rect := sdl.FRect{
+		x = 0,
+		y = (view.position.y > 0 ? 0 : -view.position.y + (margins.up)) - (f32(font.height) * 0.4),
+		w = window.w,
+		h = src_rect.h - (margins.up + margins.down) + (f32(font.height) * 0.8),
+	}
+
+	// Background
+	sdl.SetRenderDrawColor(renderer, 0x24, 0x28, 0x3b, 0xff)
+	sdl.RenderFillRect(renderer, &background_rect)
+
+	sdl.RenderTexture(renderer, text_texture.handle, &src_rect, &dst_rect)
 }
 
 calculate_app_time :: proc(app_time: ^App_Time) {
@@ -201,7 +206,7 @@ calculate_app_time :: proc(app_time: ^App_Time) {
 }
 
 fill_screen :: proc(color: Color) {
-	sdl.SetRenderDrawColorFloat(renderer, color.x, color.y, color.z, color.w)
+	sdl.SetRenderDrawColor(renderer, 0x1f, 0x23, 0x35, 0xff)
 	sdl.RenderClear(renderer)
 }
 
