@@ -21,7 +21,7 @@ iVec4 :: [4]i32
 
 Window :: struct {
 	handle: ^sdl.Window,
-	size: iVec2,
+	w, h: f32,
 	should_close: bool,
 }
 
@@ -45,8 +45,10 @@ Font :: struct {
 }
 
 window := Window {
-	size = {680, 480}
+	w = 640,
+	h = 480,
 }
+
 text := Text {
 	string = text_string,
 }
@@ -58,7 +60,8 @@ font := Font{
 Margins :: struct {
 	up, down, left, right: f32
 }
-margins := Margins{ 10, 0, 20, 0 }
+// margins := Margins{ 10, 0, 20, 0 }
+margins := Margins{ 0, 0, 0, 0 }
 
 renderer: ^sdl.Renderer
 
@@ -72,7 +75,7 @@ main :: proc() {
 
 	ok := sdl.SetAppMetadata("Elk", "0.1", "com.elk.charlie"); assert(ok)
 	ok = sdl.Init({.VIDEO}); assert(ok)
-	ok = sdl.CreateWindowAndRenderer("Elk", window.size.x, window.size.y, {}, &window.handle, &renderer); assert(ok)
+	ok = sdl.CreateWindowAndRenderer("Elk", i32(window.w), i32(window.h), {}, &window.handle, &renderer); assert(ok)
 
 	// Init ttf.
 	if !ttf.Init() {
@@ -85,7 +88,7 @@ main :: proc() {
 	if (font.handle == nil) do error_and_exit()
 	defer ttf.CloseFont(font.handle)
 
-	text_surface := ttf.RenderText_Blended_Wrapped(font.handle, text_string, 0, colors.WHITE, window.size.x - i32(margins.left) - i32(margins.right))
+	text_surface := ttf.RenderText_Blended_Wrapped(font.handle, text_string, 0, colors.WHITE, i32(window.w - margins.left - margins.right))
 	if (text_surface == nil) do error_and_exit()
 	else {
 		text.texture = sdl.CreateTextureFromSurface(renderer, text_surface)
@@ -131,15 +134,12 @@ main :: proc() {
 		sdl.GetRenderOutputSize(renderer, &w, &h)
 		if (first_iteration) do fmt.printfln("w: %d, h: %d\n", w, h)
 
-		sdl.GetTextureSize(text.texture, &text.size.x, &text.size.y)
-		view.size.y = text.size.y < f32(window.size.y) ? text.size.y : f32(window.size.y)
-		view.size.x = text.size.x
+		// NOTE: text.size is a bad stimation. The text has a diffrent width and heigth.
+		view.position = { view.column, view.line } * f32(font.size)
 		view.position.y = view.line * f32(font.size)
-		view.window = sdl.FRect{ view.position.x, view.position.y, view.size.x, view.size.y }
-		text_dst_rect := sdl.FRect{ margins.left, margins.up, max(text.size.x, f32(window.size.x)), view.size.y }
-		sdl.RenderTexture(renderer, text.texture, &view.window, &text_dst_rect)
+		fmt.printfln("col: %v, line: %v, position: %v", view.column, view.line, view.position)
 
-		// TODO: width of text buffer should take margins into account.
+		render_text(text.texture)
 
 		sdl.RenderPresent(renderer)
 		first_iteration = false;
@@ -150,6 +150,49 @@ main :: proc() {
 	//////////////
 
 	sdl.Quit()
+}
+
+Text_Texture :: struct {
+	handle: ^sdl.Texture,
+	w, h: f32,
+}
+
+render_text :: proc(texture: ^sdl.Texture) {
+	text_texture := Text_Texture{ handle = texture }
+	sdl.GetTextureSize(text_texture.handle, &text_texture.w, &text_texture.h)
+	// sdl.GetTextureSize(transmute(^sdl.Texture)(&text_texture), &text_texture.w, &text_texture.h)
+	// src_rect
+	src_rect := sdl.FRect{
+		w = text_texture.w,
+		h = window.h,
+		x = 0,
+		y = clamp(view.line, 0, text_texture.h - window.h) * f32(font.size),
+	}
+	if (src_rect.y + src_rect.h > text_texture.h) {
+		src_rect.h = text_texture.h - src_rect.y
+		// fmt.println("src_rect.y < window.y")
+	}
+	// dst_rect
+	fmt.println(view.position.y)
+	fmt.println(view.position.y + window.h)
+	fmt.println(text_texture.h)
+	fmt.println(view.position.y + window.h - text_texture.h)
+	fmt.println()
+
+	dst_rect := sdl.FRect{
+		x = margins.left,
+		y = margins.up + view.line >= 0 ? 0 : -view.line * f32(font.size),
+		// y = margins.up + (window.h - src_rect.h),
+		w = (text_texture.w < window.w ? text_texture.w : window.w) - margins.right,
+		h = view.position.y + window.h <= text_texture.h ? window.h : window.h - (view.position.y + window.h - text_texture.h),
+		// h = (text_texture.h < window.h ? text_texture.h : window.h) - margins.down,
+	}
+	// if (source_rect.h < window.h) {
+	// 	dst_rect.h = 
+	// }
+	sdl.RenderTexture(renderer, text_texture.handle, &src_rect, &dst_rect)
+
+	// TODO: width of text buffer should take margins into account.
 }
 
 calculate_app_time :: proc(app_time: ^App_Time) {
