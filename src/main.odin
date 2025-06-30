@@ -55,7 +55,7 @@ text := Text {
 }
 view: View
 font := Font{
-	size = 13,
+	size = 14,
 }
 
 Margins :: struct {
@@ -76,7 +76,8 @@ main :: proc() {
 
 	ok := sdl.SetAppMetadata("Elk", "0.1", "com.elk.charlie"); assert(ok)
 	ok = sdl.Init({.VIDEO}); assert(ok)
-	ok = sdl.CreateWindowAndRenderer("Elk", i32(window.w), i32(window.h), {}, &window.handle, &renderer); assert(ok)
+	window_flags := sdl.WindowFlags{.BORDERLESS}
+	ok = sdl.CreateWindowAndRenderer("Elk", i32(window.w), i32(window.h), window_flags, &window.handle, &renderer); assert(ok)
 
 	// Init ttf.
 	if !ttf.Init() {
@@ -91,6 +92,27 @@ main :: proc() {
 	font.height = ttf.GetFontLineSkip(font.handle)
 	fmt.println(font.height)
 
+	filename := "main.odin"
+	file, err := os.open(filename, os.O_RDONLY)
+	if (err != os.ERROR_NONE) {
+		fmt.fprintln(os.stderr, "ERROR: file not found.")
+		os.exit(1)
+	}
+	defer os.close(file)
+	file_stat: os.File_Info
+	file_stat, err = os.fstat(file)
+	if (err != os.ERROR_NONE) {
+		fmt.fprintln(os.stderr, "ERROR: couldn't stat file.")
+		os.exit(1)
+	}
+	fmt.println(file_stat.size)
+	text_byte_array := make([]u8, file_stat.size + 1)
+	text_byte_array, err = os.read_entire_file_from_handle_or_err(file) // NOTE: allocates memory.
+	if (err != os.ERROR_NONE) do os.exit(1)
+	// text_byte_array[file_stat.size - 1] = 0
+	// text_string = strings.clone_to_cstring(string(text_byte_array))
+	text_string = strings.unsafe_string_to_cstring(expand_tabs(string(text_byte_array), 4))
+	
 	text_surface := ttf.RenderText_Blended_Wrapped(font.handle, text_string, 0, colors.WHITE, i32(window.w - margins.left - margins.right))
 	if (text_surface == nil) do error_and_exit()
 	else {
@@ -152,7 +174,7 @@ main :: proc() {
 		render_text(text.texture)
 
 		sdl.RenderPresent(renderer)
-		first_iteration = false;
+		first_iteration = false
 	}
 
 	///////////////
