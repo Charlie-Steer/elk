@@ -106,14 +106,37 @@ main :: proc() {
 		os.exit(1)
 	}
 	fmt.println(file_stat.size)
-	text_byte_array := make([]u8, file_stat.size + 1)
+	text_byte_array := make([]u8, file_stat.size)
 	text_byte_array, err = os.read_entire_file_from_handle_or_err(file) // NOTE: allocates memory.
 	if (err != os.ERROR_NONE) do os.exit(1)
-	// text_byte_array[file_stat.size - 1] = 0
-	// text_string = strings.clone_to_cstring(string(text_byte_array))
-	text_string = strings.unsafe_string_to_cstring(expand_tabs(string(text_byte_array), 4))
+
+	text_string := expand_tabs(string(text_byte_array), 4)
+	// for c in transmute([]byte)text_string {
+	// 	fmt.println(c)
+	// }
+	// assert(false)
+	// TODO: separate string in lines.
+	// TODO: Rework with core lib functions and pay attention to conventions.
+	// lines := strings.split_lines(text_string)
+	lines := split_string_in_lines(text_string)
+	c_lines: []cstring
+	// for line, i in lines {
+	// 	c_lines[i] = strings.unsafe_string_to_cstring(string())
+	// }
 	
-	text_surface := ttf.RenderText_Blended_Wrapped(font.handle, text_string, 0, colors.WHITE, i32(window.w - margins.left - margins.right))
+	// fmt.print(string(lines[0][:]))
+	// for line, i in lines {
+	// 	fmt.print(string(line[:]))
+	// }
+
+	append_elem(&lines[0], 0x00)
+	fmt.printfln("%s", lines[0])
+	c_string := strings.unsafe_string_to_cstring(string(lines[0][:]))
+	fmt.println(c_string)
+
+	text_surface := ttf.RenderText_Blended_Wrapped(font.handle, strings.unsafe_string_to_cstring(string(lines[0][:])), 0, colors.WHITE, i32(window.w - margins.left - margins.right))
+	fmt.println("C")
+	// text_surface := ttf.RenderText_Blended(font.handle, text_string, 0, colors.WHITE)
 	if (text_surface == nil) do error_and_exit()
 	else {
 		text.texture = sdl.CreateTextureFromSurface(renderer, text_surface)
@@ -220,6 +243,9 @@ render_text :: proc(texture: ^sdl.Texture) {
 	sdl.RenderFillRect(renderer, &background_rect)
 
 	sdl.RenderTexture(renderer, text_texture.handle, &src_rect, &dst_rect)
+}
+
+render_only_visible_lines :: proc() {
 }
 
 calculate_app_time :: proc(app_time: ^App_Time) {
