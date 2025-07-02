@@ -21,7 +21,7 @@ iVec4 :: [4]i32
 
 Window :: struct {
 	handle: ^sdl.Window,
-	w, h: f32,
+	width, height: f32,
 	should_close: bool,
 }
 
@@ -46,8 +46,8 @@ Font :: struct {
 }
 
 window := Window {
-	w = 640,
-	h = 480,
+	width = 640,
+	height = 480,
 }
 
 text := Text {
@@ -77,7 +77,7 @@ main :: proc() {
 	ok := sdl.SetAppMetadata("Elk", "0.1", "com.elk.charlie"); assert(ok)
 	ok = sdl.Init({.VIDEO}); assert(ok)
 	window_flags := sdl.WindowFlags{.BORDERLESS}
-	ok = sdl.CreateWindowAndRenderer("Elk", i32(window.w), i32(window.h), window_flags, &window.handle, &renderer); assert(ok)
+	ok = sdl.CreateWindowAndRenderer("Elk", i32(window.width), i32(window.height), window_flags, &window.handle, &renderer); assert(ok)
 
 	// Init ttf.
 	if !ttf.Init() {
@@ -119,28 +119,31 @@ main :: proc() {
 	// TODO: Rework with core lib functions and pay attention to conventions.
 	// lines := strings.split_lines(text_string)
 	lines := split_string_in_lines(text_string)
-	c_lines: []cstring
-	// for line, i in lines {
-	// 	c_lines[i] = strings.unsafe_string_to_cstring(string())
-	// }
-	
-	// fmt.print(string(lines[0][:]))
-	// for line, i in lines {
-	// 	fmt.print(string(line[:]))
-	// }
+	// c_lines: []cstring
+	// // for line, i in lines {
+	// // 	c_lines[i] = strings.unsafe_string_to_cstring(string())
+	// // }
+	// 
+	// // fmt.print(string(lines[0][:]))
+	// // for line, i in lines {
+	// // 	fmt.print(string(line[:]))
+	// // }
+	//
+	// append_elem(&lines[0], 0x00)
+	// fmt.printfln("%s", lines[0])
+	// c_string := strings.unsafe_string_to_cstring(string(lines[0][:]))
+	// fmt.println(c_string)
 
-	append_elem(&lines[0], 0x00)
-	fmt.printfln("%s", lines[0])
-	c_string := strings.unsafe_string_to_cstring(string(lines[0][:]))
-	fmt.println(c_string)
+	textures := make([dynamic]^sdl.Texture)
 
-	text_surface := ttf.RenderText_Blended_Wrapped(font.handle, strings.unsafe_string_to_cstring(string(lines[0][:])), 0, colors.WHITE, i32(window.w - margins.left - margins.right))
-	fmt.println("C")
-	// text_surface := ttf.RenderText_Blended(font.handle, text_string, 0, colors.WHITE)
-	if (text_surface == nil) do error_and_exit()
-	else {
-		text.texture = sdl.CreateTextureFromSurface(renderer, text_surface)
-		sdl.DestroySurface(text_surface)
+	for line in lines {
+		text_surface := ttf.RenderText_Blended_Wrapped(font.handle, strings.unsafe_string_to_cstring(string(line[:])), 0, colors.WHITE, i32(window.width - margins.left - margins.right))
+		// text_surface := ttf.RenderText_Blended(font.handle, text_string, 0, colors.WHITE)
+		if (text_surface == nil) do error_and_exit()
+		else {
+			append(&textures, sdl.CreateTextureFromSurface(renderer, text_surface))
+			sdl.DestroySurface(text_surface)
+		}
 	}
 
 	first_iteration := true
@@ -161,10 +164,10 @@ main :: proc() {
 			case .KEY_DOWN:
 				keycode := sdl.GetKeyFromScancode(e.key.scancode, e.key.mod, false)
 				if keycode == 'J' {
-					view.line += (window.h / f32(font.height)) / 2
+					view.line += (window.height / f32(font.height)) / 2
 				}
 				else if keycode == 'K' {
-					view.line -= (window.h / f32(font.height)) / 2
+					view.line -= (window.height / f32(font.height)) / 2
 				}
 				else if e.key.scancode == .ESCAPE || e.key.scancode == .Q {
 					window.should_close = true
@@ -177,6 +180,7 @@ main :: proc() {
 				}
 			}
 		}
+		sdl.RenderClear(renderer)
 		calculate_app_time(&app_time);
 
 		// frame_rendering
@@ -194,7 +198,8 @@ main :: proc() {
 		view.position.y = view.line * f32(font.height)
 		// fmt.printfln("col: %v, line: %v, position: %v", view.column, view.line, view.position)
 
-		render_text(text.texture)
+		// render_text(text.texture)
+		render_only_visible_lines(textures[:])
 
 		sdl.RenderPresent(renderer)
 		first_iteration = false
@@ -209,32 +214,40 @@ main :: proc() {
 
 Text_Texture :: struct {
 	handle: ^sdl.Texture,
-	w, h: f32,
+	width, height: f32,
 }
 
 render_text :: proc(texture: ^sdl.Texture) {
 	text_texture := Text_Texture{ handle = texture }
-	sdl.GetTextureSize(text_texture.handle, &text_texture.w, &text_texture.h)
+	sdl.GetTextureSize(text_texture.handle, &text_texture.width, &text_texture.height)
 
-	src_rect_y_position := clamp(view.position.y, 0, text_texture.h)
+	src_rect_y_position := clamp(view.position.y, 0, text_texture.height)
 	src_rect := sdl.FRect{
 		x = 0,
 		y = src_rect_y_position,
-		w = window.w,
-		h = min(window.h, text_texture.h - src_rect_y_position)
+		w = window.width,
+		h = min(window.height, text_texture.height - src_rect_y_position)
+	}
+
+	frame := sdl.FRect{
+		x = margins.left,
+		y = margins.up,
+		w = window.width - (margins.left + margins.right),
+		h = window.height - (margins.up + margins.down),
 	}
 
 	dst_rect := sdl.FRect{
 		x = 0 + (margins.left),
 		y = view.position.y > 0 ? 0 : -view.position.y + (margins.up),
-		w = window.w - (margins.left + margins.right),
+		// w = window.w - (margins.left + margins.right),
+		w = text_texture.width < window.width ? text_texture.width : window.width - (margins.left + margins.right),
 		h = src_rect.h - (margins.up + margins.down),
 	}
 
 	background_rect := sdl.FRect{
 		x = 0,
 		y = (view.position.y > 0 ? 0 : -view.position.y + (margins.up)) - (f32(font.height) * 0.4),
-		w = window.w,
+		w = window.width,
 		h = src_rect.h - (margins.up + margins.down) + (f32(font.height) * 0.8),
 	}
 
@@ -245,7 +258,110 @@ render_text :: proc(texture: ^sdl.Texture) {
 	sdl.RenderTexture(renderer, text_texture.handle, &src_rect, &dst_rect)
 }
 
-render_only_visible_lines :: proc() {
+// render_only_visible_lines :: proc(texture_handle: []^sdl.Texture) {
+// 	texture := Text_Texture{ handle = texture_handle }
+// 	sdl.GetTextureSize(texture.handle, &texture.width, &texture.height)
+//
+// 	frame := sdl.FRect{
+// 		x = margins.left,
+// 		y = margins.up,
+// 		w = window.width - (margins.left + margins.right),
+// 		h = window.height - (margins.up + margins.down),
+// 	}
+//
+// 	src_rect_y_position := clamp(view.position.y, 0, texture.height)
+// 	src := sdl.FRect{
+// 		x = 0,
+// 		y = src_rect_y_position,
+// 		w = texture.width,
+// 		// h = min(window.height, texture.height - src_rect_y_position)
+// 		h = min(texture.height, frame.h)
+// 	}
+//
+// 	dst := sdl.FRect{
+// 		x = frame.x,
+// 		y = view.position.y > 0 ? frame.y : frame.y + abs(view.position.y),
+// 		// w = window.w - (margins.left + margins.right),
+// 		w = src.w < frame.w ? src.w : frame.w, // NOTE: This wouldn't work for non-wrapping text that goes beyond the right edge.
+// 		h = src.h < frame.h ? src.h : frame.h,
+// 	}
+//
+// 	// NOTE: Probably needs rework.
+// 	background_rect := sdl.FRect{
+// 		x = 0,
+// 		y = (view.position.y > 0 ? 0 : -view.position.y + (margins.up)) - (f32(font.height) * 0.4),
+// 		w = window.width,
+// 		h = src.h - (margins.up + margins.down) + (f32(font.height) * 0.8),
+// 	}
+//
+// 	// Background
+// 	sdl.SetRenderDrawColor(renderer, 0x24, 0x28, 0x3b, 0xff)
+// 	sdl.RenderFillRect(renderer, &background_rect)
+//
+//
+// 	sdl.RenderTexture(renderer, texture.handle, &src, &dst)
+// }
+
+// NOTE: Might need to make texture array dynamic.
+render_only_visible_lines :: proc(texture_handles: []^sdl.Texture) {
+	frame := sdl.FRect{
+		x = margins.left,
+		y = margins.up,
+		w = window.width - (margins.left + margins.right),
+		h = window.height - (margins.up + margins.down),
+	}
+	
+	line_vertical_offset: int
+	for texture, i in texture_handles {
+		texture := Text_Texture{ handle = texture_handles[i] }
+		sdl.GetTextureSize(texture.handle, &texture.width, &texture.height)
+
+		src_rect_y_position := clamp(view.position.y, 0, texture.height)
+		src := sdl.FRect{
+			x = 0,
+			y = src_rect_y_position,
+			w = texture.width,
+			// h = min(window.height, texture.height - src_rect_y_position)
+			h = min(texture.height, frame.h)
+		}
+
+		dst := sdl.FRect{
+			x = frame.x,
+			// y = view.position.y > 0 ? 0 : -view.position.y + (margins.up),
+			y = view.position.y >= 0 ? frame.y : frame.y + abs(view.position.y),
+			// w = window.w - (margins.left + margins.right),
+			w = src.w < frame.w ? src.w : frame.w, // NOTE: This wouldn't work for non-wrapping text that goes beyond the right edge.
+			h = src.h < frame.h ? src.h : frame.h,
+		}
+		dst.y += f32(line_vertical_offset)
+		line_vertical_offset += int(font.height)
+
+		// NOTE: Probably needs rework.
+		// background_rect := sdl.FRect{
+		// 	x = 0,
+		// 	y = (view.position.y > 0 ? 0 : -view.position.y + (margins.up)) - (f32(font.height) * 0.4),
+		// 	w = window.width,
+		// 	h = src.h - (margins.up + margins.down) + (f32(font.height) * 0.8),
+		// }
+		background_rect := dst
+		background_rect.x = 0
+		background_rect.w = window.width
+		background_rect.h = f32(font.height)
+		// background_rect.y += f32(font.height)
+		fmt.println(background_rect.h)
+
+		// Background
+		// sdl.SetRenderDrawColor(renderer, 0x24, 0x28, 0x3b, 0xff)
+		//
+		// // sdl.RenderFillRect(renderer, &background_rect)
+		// if i % 3 == 0 {
+		// 	sdl.RenderFillRect(renderer, &background_rect)
+		// } else {
+		// 	sdl.RenderRect(renderer, &background_rect)
+		// }
+
+		sdl.RenderTexture(renderer, texture.handle, &src, &dst)
+	}
 }
 
 calculate_app_time :: proc(app_time: ^App_Time) {
