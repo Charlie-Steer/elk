@@ -25,6 +25,12 @@ Window :: struct {
 	should_close: bool,
 }
 
+Line :: struct {
+	texture: ^sdl.Texture,
+	text: [dynamic]u8,
+	height_in_lines: int,
+}
+
 Text :: struct {
 	string: cstring,
 	texture: ^sdl.Texture,
@@ -41,8 +47,8 @@ View :: struct {
 
 Font :: struct {
 	handle: ^ttf.Font,
-	size: i32,
-	height: i32,
+	size: int,
+	height: int,
 }
 
 window := Window {
@@ -62,12 +68,35 @@ Margins :: struct {
 	up, down, left, right: f32
 }
 margins := Margins{ 10, 0, 20, 0 }
-// margins := Margins{ 0, 0, 0, 0 }
 
 renderer: ^sdl.Renderer
 
 App_Time :: struct { msec, sec: f32 }
 app_time: App_Time;
+
+open_file :: proc(filename: string) -> os.Handle {
+	file, err := os.open(filename, os.O_RDONLY)
+	if (err != os.ERROR_NONE) {
+		fmt.fprintln(os.stderr, "ERROR: file not found.")
+		os.exit(1)
+	}
+	return file
+}
+
+// NOTE: Two step get size and then read might be a security risk.
+get_file_content :: proc(file: os.Handle) -> string {
+	file_stat, err := os.fstat(file)
+	if (err != os.ERROR_NONE) {
+		fmt.fprintln(os.stderr, "ERROR: couldn't stat file.")
+		os.exit(1)
+	}
+	fmt.println(file_stat.size)
+	content := make([]u8, file_stat.size)
+	content, err = os.read_entire_file_from_handle_or_err(file) // NOTE: allocates memory.
+	if (err != os.ERROR_NONE) do os.exit(1)
+
+	return string(content)
+}
 
 main :: proc() {
 	///////////////
@@ -89,64 +118,42 @@ main :: proc() {
 	font.handle = ttf.OpenFont("/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf", f32(font.size))
 	if (font.handle == nil) do error_and_exit()
 	defer ttf.CloseFont(font.handle)
-	font.height = ttf.GetFontLineSkip(font.handle)
-	fmt.println(font.height)
+	font.height = int(ttf.GetFontLineSkip(font.handle))
+	// fmt.println(font.height)
 
+	// NOTE: Do I want to have the file open for the duration of the program or just on open and on save?
 	filename := "main.odin"
-	file, err := os.open(filename, os.O_RDONLY)
-	if (err != os.ERROR_NONE) {
-		fmt.fprintln(os.stderr, "ERROR: file not found.")
-		os.exit(1)
-	}
+	file := open_file(filename)
 	defer os.close(file)
-	file_stat: os.File_Info
-	file_stat, err = os.fstat(file)
-	if (err != os.ERROR_NONE) {
-		fmt.fprintln(os.stderr, "ERROR: couldn't stat file.")
-		os.exit(1)
-	}
-	fmt.println(file_stat.size)
-	text_byte_array := make([]u8, file_stat.size)
-	text_byte_array, err = os.read_entire_file_from_handle_or_err(file) // NOTE: allocates memory.
-	if (err != os.ERROR_NONE) do os.exit(1)
 
-	text_string := expand_tabs(string(text_byte_array), 4)
-	// for c in transmute([]byte)text_string {
-	// 	fmt.println(c)
-	// }
-	// assert(false)
-	// TODO: separate string in lines.
-	// TODO: Rework with core lib functions and pay attention to conventions.
-	// lines := strings.split_lines(text_string)
-	lines := split_string_in_lines(text_string)
-	// c_lines: []cstring
-	// // for line, i in lines {
-	// // 	c_lines[i] = strings.unsafe_string_to_cstring(string())
-	// // }
-	// 
-	// // fmt.print(string(lines[0][:]))
-	// // for line, i in lines {
-	// // 	fmt.print(string(line[:]))
-	// // }
-	//
-	// append_elem(&lines[0], 0x00)
-	// fmt.printfln("%s", lines[0])
-	// c_string := strings.unsafe_string_to_cstring(string(lines[0][:]))
-	// fmt.println(c_string)
+	file_content := get_file_content(file)
 
-	textures := make([dynamic]^sdl.Texture)
+	text_string := expand_tabs(file_content, 4)
+	// lines := split_string_in_lines(text_string)
+	lines := split_string_in_line_structs(text_string)
 
-	for line in lines {
-		text_surface := ttf.RenderText_Blended_Wrapped(font.handle, strings.unsafe_string_to_cstring(string(line[:])), 0, colors.WHITE, i32(window.width - margins.left - margins.right))
-		// text_surface := ttf.RenderText_Blended(font.handle, text_string, 0, colors.WHITE)
-		if (text_surface == nil) do error_and_exit()
-		else {
-			append(&textures, sdl.CreateTextureFromSurface(renderer, text_surface))
+	// textures := make([dynamic]^sdl.Texture)
+
+	for &line, i in lines {
+		// text_surface := ttf.RenderText_Blended_Wrapped(font.handle, strings.unsafe_string_to_cstring(string(line.text[:])), 0, colors.WHITE, i32(window.width - margins.left - margins.right))
+		text_surface := ttf.RenderText_Blended(font.handle, strings.unsafe_string_to_cstring(string(line.text[:])), 0, colors.WHITE)
+		// if (text_surface == nil) do error_and_exit()
+		if (text_surface == nil) {
+			continue
+		} else {
+			// fmt.printfln("line %d: %s", i, line.text) 
+			fmt.printfln("line %d: %v", i, line.text) 
+			// fmt.println("surface: ", text_surface.h) 
+			line.texture = sdl.CreateTextureFromSurface(renderer, text_surface)
+			// fmt.println("texture: ", line.texture.h) 
+			line.height_in_lines = int(line.texture.h) / font.height
+			// fmt.println("height_in_lines: ", line.height_in_lines)
+			// fmt.println()
 			sdl.DestroySurface(text_surface)
 		}
 	}
 
-	first_iteration := true
+	first_iteration := true // NOTE: For testing purposes.
 
 
 	//////////////////
@@ -193,13 +200,13 @@ main :: proc() {
 		sdl.GetRenderOutputSize(renderer, &w, &h)
 		if (first_iteration) do fmt.printfln("w: %d, h: %d\n", w, h)
 
-		// NOTE: text.size is a bad stimation. The text has a diffrent width and heigth.
+		// NOTE: text.size is a bad estimation. The text has a diffrent width and heigth.
 		view.position = { view.column, view.line } * f32(font.height)
 		view.position.y = view.line * f32(font.height)
 		// fmt.printfln("col: %v, line: %v, position: %v", view.column, view.line, view.position)
 
 		// render_text(text.texture)
-		render_only_visible_lines(textures[:])
+		render_only_visible_lines(lines)
 
 		sdl.RenderPresent(renderer)
 		first_iteration = false
@@ -210,158 +217,6 @@ main :: proc() {
 	//////////////
 
 	sdl.Quit()
-}
-
-Text_Texture :: struct {
-	handle: ^sdl.Texture,
-	width, height: f32,
-}
-
-render_text :: proc(texture: ^sdl.Texture) {
-	text_texture := Text_Texture{ handle = texture }
-	sdl.GetTextureSize(text_texture.handle, &text_texture.width, &text_texture.height)
-
-	src_rect_y_position := clamp(view.position.y, 0, text_texture.height)
-	src_rect := sdl.FRect{
-		x = 0,
-		y = src_rect_y_position,
-		w = window.width,
-		h = min(window.height, text_texture.height - src_rect_y_position)
-	}
-
-	frame := sdl.FRect{
-		x = margins.left,
-		y = margins.up,
-		w = window.width - (margins.left + margins.right),
-		h = window.height - (margins.up + margins.down),
-	}
-
-	dst_rect := sdl.FRect{
-		x = 0 + (margins.left),
-		y = view.position.y > 0 ? 0 : -view.position.y + (margins.up),
-		// w = window.w - (margins.left + margins.right),
-		w = text_texture.width < window.width ? text_texture.width : window.width - (margins.left + margins.right),
-		h = src_rect.h - (margins.up + margins.down),
-	}
-
-	background_rect := sdl.FRect{
-		x = 0,
-		y = (view.position.y > 0 ? 0 : -view.position.y + (margins.up)) - (f32(font.height) * 0.4),
-		w = window.width,
-		h = src_rect.h - (margins.up + margins.down) + (f32(font.height) * 0.8),
-	}
-
-	// Background
-	sdl.SetRenderDrawColor(renderer, 0x24, 0x28, 0x3b, 0xff)
-	sdl.RenderFillRect(renderer, &background_rect)
-
-	sdl.RenderTexture(renderer, text_texture.handle, &src_rect, &dst_rect)
-}
-
-// render_only_visible_lines :: proc(texture_handle: []^sdl.Texture) {
-// 	texture := Text_Texture{ handle = texture_handle }
-// 	sdl.GetTextureSize(texture.handle, &texture.width, &texture.height)
-//
-// 	frame := sdl.FRect{
-// 		x = margins.left,
-// 		y = margins.up,
-// 		w = window.width - (margins.left + margins.right),
-// 		h = window.height - (margins.up + margins.down),
-// 	}
-//
-// 	src_rect_y_position := clamp(view.position.y, 0, texture.height)
-// 	src := sdl.FRect{
-// 		x = 0,
-// 		y = src_rect_y_position,
-// 		w = texture.width,
-// 		// h = min(window.height, texture.height - src_rect_y_position)
-// 		h = min(texture.height, frame.h)
-// 	}
-//
-// 	dst := sdl.FRect{
-// 		x = frame.x,
-// 		y = view.position.y > 0 ? frame.y : frame.y + abs(view.position.y),
-// 		// w = window.w - (margins.left + margins.right),
-// 		w = src.w < frame.w ? src.w : frame.w, // NOTE: This wouldn't work for non-wrapping text that goes beyond the right edge.
-// 		h = src.h < frame.h ? src.h : frame.h,
-// 	}
-//
-// 	// NOTE: Probably needs rework.
-// 	background_rect := sdl.FRect{
-// 		x = 0,
-// 		y = (view.position.y > 0 ? 0 : -view.position.y + (margins.up)) - (f32(font.height) * 0.4),
-// 		w = window.width,
-// 		h = src.h - (margins.up + margins.down) + (f32(font.height) * 0.8),
-// 	}
-//
-// 	// Background
-// 	sdl.SetRenderDrawColor(renderer, 0x24, 0x28, 0x3b, 0xff)
-// 	sdl.RenderFillRect(renderer, &background_rect)
-//
-//
-// 	sdl.RenderTexture(renderer, texture.handle, &src, &dst)
-// }
-
-// NOTE: Might need to make texture array dynamic.
-render_only_visible_lines :: proc(texture_handles: []^sdl.Texture) {
-	frame := sdl.FRect{
-		x = margins.left,
-		y = margins.up,
-		w = window.width - (margins.left + margins.right),
-		h = window.height - (margins.up + margins.down),
-	}
-	
-	line_vertical_offset: int
-	for texture, i in texture_handles {
-		texture := Text_Texture{ handle = texture_handles[i] }
-		sdl.GetTextureSize(texture.handle, &texture.width, &texture.height)
-
-		src_rect_y_position := clamp(view.position.y, 0, texture.height)
-		src := sdl.FRect{
-			x = 0,
-			y = src_rect_y_position,
-			w = texture.width,
-			// h = min(window.height, texture.height - src_rect_y_position)
-			h = min(texture.height, frame.h)
-		}
-
-		dst := sdl.FRect{
-			x = frame.x,
-			// y = view.position.y > 0 ? 0 : -view.position.y + (margins.up),
-			y = view.position.y >= 0 ? frame.y : frame.y + abs(view.position.y),
-			// w = window.w - (margins.left + margins.right),
-			w = src.w < frame.w ? src.w : frame.w, // NOTE: This wouldn't work for non-wrapping text that goes beyond the right edge.
-			h = src.h < frame.h ? src.h : frame.h,
-		}
-		dst.y += f32(line_vertical_offset)
-		line_vertical_offset += int(font.height)
-
-		// NOTE: Probably needs rework.
-		// background_rect := sdl.FRect{
-		// 	x = 0,
-		// 	y = (view.position.y > 0 ? 0 : -view.position.y + (margins.up)) - (f32(font.height) * 0.4),
-		// 	w = window.width,
-		// 	h = src.h - (margins.up + margins.down) + (f32(font.height) * 0.8),
-		// }
-		background_rect := dst
-		background_rect.x = 0
-		background_rect.w = window.width
-		background_rect.h = f32(font.height)
-		// background_rect.y += f32(font.height)
-		fmt.println(background_rect.h)
-
-		// Background
-		// sdl.SetRenderDrawColor(renderer, 0x24, 0x28, 0x3b, 0xff)
-		//
-		// // sdl.RenderFillRect(renderer, &background_rect)
-		// if i % 3 == 0 {
-		// 	sdl.RenderFillRect(renderer, &background_rect)
-		// } else {
-		// 	sdl.RenderRect(renderer, &background_rect)
-		// }
-
-		sdl.RenderTexture(renderer, texture.handle, &src, &dst)
-	}
 }
 
 calculate_app_time :: proc(app_time: ^App_Time) {
@@ -384,3 +239,21 @@ error_and_exit :: proc(category := sdl.LogCategory.APPLICATION) {
 	sdl.LogError(category, sdl.GetError())
 	os.exit(1);
 }
+
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.
+// This line is just here for security in case file read cuts data.

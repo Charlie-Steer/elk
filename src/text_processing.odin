@@ -3,6 +3,7 @@ package main
 import "core:strings"
 import "core:unicode/utf8"
 import "core:fmt"
+import "core:os"
 
 // NOTE: Add error handling?
 // NOTE: Apparently theres an expand_tabs proc on core:strings
@@ -47,6 +48,20 @@ split_string_in_lines :: proc(text: string) -> [dynamic]([dynamic]u8) {
 			append_elem(&lines, substr)
 			line_start_index = i
 			// line_number += 1
+		}
+	}
+	return lines
+}
+
+split_string_in_line_structs :: proc(text: string) -> [dynamic]Line {
+	lines: = make([dynamic]Line)
+	line_start_index: int 
+	for c, i in transmute([]u8)text {
+		if c == '\n' {
+			// substr := copy_substring(text[line_start_index:(i + 1)])
+			substr := copy_substring(text[line_start_index:i])
+			append_elem(&lines, Line{ text = substr })
+			line_start_index = i + 1
 		}
 	}
 	return lines
