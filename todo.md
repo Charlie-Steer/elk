@@ -13,4 +13,8 @@
 - Line numbers?
 - Resizeability.
 
-# Roadmap:
+
+# Potential niceties:
+
+- Draw calls only for text that fits on screen?
+- Single draw call?
