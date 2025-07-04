@@ -21,7 +21,7 @@ iVec4 :: [4]i32
 
 Window :: struct {
 	handle: ^sdl.Window,
-	width, height: f32,
+	width, height: int,
 	should_close: bool,
 }
 
@@ -38,8 +38,8 @@ Text :: struct {
 }
 
 View :: struct {
-	line: f32,
-	column: f32,
+	line: int,
+	column: int,
 	position: fVec2,
 	size: fVec2,
 	window: sdl.FRect,
@@ -49,6 +49,7 @@ Font :: struct {
 	handle: ^ttf.Font,
 	size: int,
 	height: int,
+	width: int,
 }
 
 window := Window {
@@ -65,9 +66,10 @@ font := Font{
 }
 
 Margins :: struct {
-	up, down, left, right: f32
+	up, down, left, right: int
 }
-margins := Margins{ 10, 0, 20, 0 }
+// margins := Margins{ 10, 0, 20, 0 }
+margins := Margins{ 0, 0, 0, 0 }
 
 renderer: ^sdl.Renderer
 
@@ -119,7 +121,10 @@ main :: proc() {
 	if (font.handle == nil) do error_and_exit()
 	defer ttf.CloseFont(font.handle)
 	font.height = int(ttf.GetFontLineSkip(font.handle))
-	// fmt.println(font.height)
+	ok = ttf.GetGlyphMetrics(font.handle, ' ', nil, nil, nil, nil, transmute(^i32)&font.width)
+	if !ok {
+		error_and_exit()
+	}
 
 	// NOTE: Do I want to have the file open for the duration of the program or just on open and on save?
 	filename := "main.odin"
@@ -171,19 +176,25 @@ main :: proc() {
 			case .KEY_DOWN:
 				keycode := sdl.GetKeyFromScancode(e.key.scancode, e.key.mod, false)
 				if keycode == 'J' {
-					view.line += (window.height / f32(font.height)) / 2
-				}
-				else if keycode == 'K' {
-					view.line -= (window.height / f32(font.height)) / 2
-				}
-				else if e.key.scancode == .ESCAPE || e.key.scancode == .Q {
+					view.line += (window.height / font.height) / 2
+					fmt.println(window.height, font.height, (window.height / font.height) / 2)
+				} else if keycode == 'K' {
+					view.line -= (window.height / font.height) / 2
+					fmt.println(window.height, font.height, (window.height / font.height) / 2)
+				} else if keycode == 'H' {
+					view.column -= (window.width / font.width) / 2
+				} else if keycode == 'L' {
+					view.column += (window.width / font.width) / 2
+				} else if e.key.scancode == .ESCAPE || e.key.scancode == .Q {
 					window.should_close = true
-				}
-				else if e.key.scancode == .J {
+				} else if e.key.scancode == .J {
 					view.line += 1;
-				}
-				else if e.key.scancode == .K {
+				} else if e.key.scancode == .K {
 					view.line -= 1;
+				} else if e.key.scancode == .H {
+					view.column -= 1;
+				} else if e.key.scancode == .L {
+					view.column += 1;
 				}
 			}
 		}
@@ -200,12 +211,9 @@ main :: proc() {
 		sdl.GetRenderOutputSize(renderer, &w, &h)
 		if (first_iteration) do fmt.printfln("w: %d, h: %d\n", w, h)
 
-		// NOTE: text.size is a bad estimation. The text has a diffrent width and heigth.
-		view.position = { view.column, view.line } * f32(font.height)
-		view.position.y = view.line * f32(font.height)
-		// fmt.printfln("col: %v, line: %v, position: %v", view.column, view.line, view.position)
+		view.position = { f32(view.column), f32(view.line) } * f32(font.height)
+		// view.position.y = f32(view.line * font.height)
 
-		// render_text(text.texture)
 		render_only_visible_lines(lines)
 
 		sdl.RenderPresent(renderer)

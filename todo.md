@@ -1,6 +1,8 @@
 # On sight:
 
-- Lateral scroll.
+- Fix background.
+- Set scroll limits.
+
 - Clean-up my types.
 - Cursor.
 - Editing.

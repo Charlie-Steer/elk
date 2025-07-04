@@ -7,10 +7,10 @@ import "core:fmt"
 // Probably write separate logic if you want to implement wrapping text.
 render_only_visible_lines :: proc(lines: [dynamic]Line) {
 	frame := sdl.FRect{
-		x = margins.left,
-		y = margins.up,
-		w = window.width - (margins.left + margins.right),
-		h = window.height - (margins.up + margins.down),
+		x = f32(margins.left),
+		y = f32(margins.up),
+		w = f32(window.width - (margins.left + margins.right)),
+		h = f32(window.height - (margins.up + margins.down)),
 	}
 	
 	line_vertical_offset: f32
@@ -23,6 +23,7 @@ render_only_visible_lines :: proc(lines: [dynamic]Line) {
 		// src_rect_y_position := clamp(view.position.y, 0, f32(texture.h))
 		src := sdl.FRect{
 			x = 0,
+			// x = view.column * f32(font.width),
 			// y = src_rect_y_position,
 			y = 0,
 			w = min(f32(texture.w), frame.w),
@@ -34,11 +35,11 @@ render_only_visible_lines :: proc(lines: [dynamic]Line) {
 		// fmt.println("height_in_lines: ", line.height_in_lines)
 		// fmt.println("texture_height: ", line.texture.h)
 		// TODO: Only draw lines that fit on screen.
-		line_vertical_offset = f32(line.height_in_lines) * f32(font.height) * f32(i) - view.position.y
+		line_vertical_offset = f32(font.height) * f32(i) - view.position.y
 		dst := sdl.FRect{
-			x = frame.x,
-			// y = view.position.y > 0 ? 0 : -view.position.y + (margins.up),
-			y = view.position.y >= 0 ? frame.y + line_vertical_offset : frame.y + abs(view.position.y) + line_vertical_offset,
+			// x = frame.x,
+			x = frame.x - f32(view.column * font.width),
+			y = frame.y + line_vertical_offset,
 			// w = window.w - (margins.left + margins.right),
 			w = src.w < frame.w ? src.w : frame.w,
 			h = src.h < frame.h ? src.h : frame.h,
@@ -53,7 +54,7 @@ render_only_visible_lines :: proc(lines: [dynamic]Line) {
 		// }
 		background_rect := dst
 		background_rect.x = 0
-		background_rect.w = window.width
+		background_rect.w = f32(window.width)
 		background_rect.h = f32(font.height)
 		// background_rect.y += f32(font.height)
 		// fmt.println(background_rect.h)
