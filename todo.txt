@@ -1,0 +1,11 @@
+- Fixed framerate.
+
+- Hot reload.
+
+- Line numbers?
+
+- Resizeability.
+
+Next: EDITING?
+
+# Non-pressing:

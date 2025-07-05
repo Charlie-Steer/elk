@@ -1,6 +1,7 @@
 package main
 
 import "colors"
+import cs "charlie"
 
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
@@ -70,6 +71,9 @@ Margins :: struct {
 }
 // margins := Margins{ 10, 0, 20, 0 }
 margins := Margins{ 0, 0, 0, 0 }
+
+max_view_lines_above_text, max_view_lines_under_text := 3, 3
+max_view_lines_left_of_text, max_view_lines_right_of_text := 0, 1
 
 renderer: ^sdl.Renderer
 
@@ -198,7 +202,15 @@ main :: proc() {
 				}
 			}
 		}
+
+		// fmt.println("view.line: ", view.line)
+		// fmt.println("view.line: ", len(lines), '\n')
+		number_of_lines_that_fit_on_screen := window.height / font.height
+		view.line = clamp(view.line, -max_view_lines_above_text, len(lines) - number_of_lines_that_fit_on_screen + max_view_lines_under_text)
+		view.column = cs.clamp_min(view.column, -max_view_lines_left_of_text)
+
 		sdl.RenderClear(renderer)
+
 		calculate_app_time(&app_time);
 
 		// frame_rendering
@@ -211,7 +223,7 @@ main :: proc() {
 		sdl.GetRenderOutputSize(renderer, &w, &h)
 		if (first_iteration) do fmt.printfln("w: %d, h: %d\n", w, h)
 
-		view.position = { f32(view.column), f32(view.line) } * f32(font.height)
+		view.position = { f32(view.column) * f32(font.width), f32(view.line) * f32(font.height) }
 		// view.position.y = f32(view.line * font.height)
 
 		render_only_visible_lines(lines)

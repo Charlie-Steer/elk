@@ -2,6 +2,8 @@ package main
 
 import sdl "vendor:sdl3"
 import "core:fmt"
+import cs "charlie"
+import "colors"
 
 // For now only intended to draw non-wrapping monospaced lines.
 // Probably write separate logic if you want to implement wrapping text.
@@ -14,6 +16,8 @@ render_only_visible_lines :: proc(lines: [dynamic]Line) {
 	}
 	
 	line_vertical_offset: f32
+	// fmt.println("before: ", view.position.x)
+	// fmt.println("after: ", cs.clamp_min(view.position.x, 0))
 	for line, i in lines {
 		texture := line.texture
 		if texture == nil {
@@ -22,14 +26,23 @@ render_only_visible_lines :: proc(lines: [dynamic]Line) {
 
 		// src_rect_y_position := clamp(view.position.y, 0, f32(texture.h))
 		src := sdl.FRect{
-			x = 0,
-			// x = view.column * f32(font.width),
-			// y = src_rect_y_position,
+			// x = view.position.x,
+			x = cs.clamp_min(view.position.x, 0),
 			y = 0,
-			w = min(f32(texture.w), frame.w),
-			// h = min(window.height, texture.height - src_rect_y_position)
+			// w = min(f32(texture.w) - clamp(view.position.x, 0, view.position.x), frame.w),
+			// w = min(f32(texture.w) - view.position.x, frame.w),
+			w = min(f32(texture.w) - cs.clamp_min(view.position.x, 0), frame.w),
+			// w = min(f32(texture.w), frame.w),
 			h = min(f32(texture.h), frame.h),
 		}
+		// src = sdl.FRect{
+		// 	x = view.position.x,
+		// 	y = 0,
+		// 	// w = min(f32(texture.w) - clamp(view.position.x, 0, view.position.x), frame.w),
+		// 	w = min(f32(texture.w) - cs.clamp_min(view.position.x, 0), frame.w),
+		// 	// w = min(f32(texture.w), frame.w),
+		// 	h = min(f32(texture.h), frame.h),
+		// }
 
 		// fmt.println(texture)
 		// fmt.println("height_in_lines: ", line.height_in_lines)
@@ -38,11 +51,22 @@ render_only_visible_lines :: proc(lines: [dynamic]Line) {
 		line_vertical_offset = f32(font.height) * f32(i) - view.position.y
 		dst := sdl.FRect{
 			// x = frame.x,
-			x = frame.x - f32(view.column * font.width),
+			x = view.position.x < 0 ? frame.x + (-view.position.x) : frame.x,
+			// x = frame.x - view.position.x,
 			y = frame.y + line_vertical_offset,
 			// w = window.w - (margins.left + margins.right),
-			w = src.w < frame.w ? src.w : frame.w,
-			h = src.h < frame.h ? src.h : frame.h,
+			// w = src.w < frame.w ? src.w : frame.w,
+			w = src.w,
+			// h = src.h < frame.h ? src.h : frame.h,
+			h = src.h,
+		}
+		sdl.SetRenderDrawColor(renderer, 255, 0, 0, 255)
+		bounds := dst
+		sdl.RenderRect(renderer, &bounds)
+
+		if (i == 4) {
+			fmt.println("src: ", src)
+			fmt.println("dst: ", dst, '\n')
 		}
 
 		// NOTE: Probably needs rework.
