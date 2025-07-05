@@ -1,25 +1,26 @@
 # On sight:
 
-- Concept of which lines are on screen. Would allow:
-    - Setting right scroll limit relative to the longest line on screen.
-    - Render only visible lines.
-- Fix background.
+- FPS counter.
 
 - Clean-up my types.
 - Cursor.
 - Editing.
+
+- Rethink margins. Inner margin (within text area) and outside margin?
+- Setting right scroll limit relative to the longest line on screen.
+- Background right limit.
 
 
 # Non-pressing:
 
 - Fixed framerate.
 - Hot reload.
-- Line numbers?
+- Line numbers.
 - Resizeability.
 
+- SDL3 and SDL3_ttf bindings rework?
 
 # Potential niceties:
 
-- Draw calls only for text that fits on screen?
 - Single draw call?
 - Double buffering?

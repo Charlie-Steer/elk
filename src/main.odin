@@ -30,6 +30,7 @@ Line :: struct {
 	texture: ^sdl.Texture,
 	text: [dynamic]u8,
 	height_in_lines: int,
+	index: int,
 }
 
 Text :: struct {
@@ -54,8 +55,8 @@ Font :: struct {
 }
 
 window := Window {
-	width = 640,
-	height = 480,
+	width = window_width,
+	height = window_height,
 }
 
 text := Text {
@@ -63,22 +64,19 @@ text := Text {
 }
 view: View
 font := Font{
-	size = 14,
+	size = font_size,
 }
 
 Margins :: struct {
 	up, down, left, right: int
 }
-// margins := Margins{ 10, 0, 20, 0 }
-margins := Margins{ 0, 0, 0, 0 }
-
-max_view_lines_above_text, max_view_lines_under_text := 3, 3
-max_view_lines_left_of_text, max_view_lines_right_of_text := 0, 1
 
 renderer: ^sdl.Renderer
 
 App_Time :: struct { msec, sec: f32 }
 app_time: App_Time;
+
+number_of_lines: int
 
 open_file :: proc(filename: string) -> os.Handle {
 	file, err := os.open(filename, os.O_RDONLY)
@@ -102,6 +100,17 @@ get_file_content :: proc(file: os.Handle) -> string {
 	if (err != os.ERROR_NONE) do os.exit(1)
 
 	return string(content)
+}
+
+get_indeces_for_lines_in_view :: proc(lines: [dynamic]Line) -> (start_index, end_index: int) {
+	start_index = cs.clamp_min(view.line, 0)
+	fmt.println(window.height, font.height, window.height / font.height)
+	// fmt.println("view.line: ", view.line)
+	end_index = clamp(view.line + (window.height / font.height) - 1, 0, number_of_lines - 1)
+
+	// fmt.println("start_index: ", start_index)
+	// fmt.println("end_index: ", end_index, "\n")
+	return start_index, end_index
 }
 
 main :: proc() {
@@ -199,6 +208,8 @@ main :: proc() {
 					view.column -= 1;
 				} else if e.key.scancode == .L {
 					view.column += 1;
+				} else if e.key.scancode == .D {
+					debug_rendering = !debug_rendering
 				}
 			}
 		}
@@ -209,7 +220,9 @@ main :: proc() {
 		view.line = clamp(view.line, -max_view_lines_above_text, len(lines) - number_of_lines_that_fit_on_screen + max_view_lines_under_text)
 		view.column = cs.clamp_min(view.column, -max_view_lines_left_of_text)
 
-		sdl.RenderClear(renderer)
+		set_line_indeces_and_number_of_lines(&lines)
+
+		// sdl.RenderClear(renderer)
 
 		calculate_app_time(&app_time);
 
@@ -226,7 +239,8 @@ main :: proc() {
 		view.position = { f32(view.column) * f32(font.width), f32(view.line) * f32(font.height) }
 		// view.position.y = f32(view.line * font.height)
 
-		render_only_visible_lines(lines)
+		index_first, index_last := get_indeces_for_lines_in_view(lines)
+		render_lines(lines, index_first, index_last)
 
 		sdl.RenderPresent(renderer)
 		first_iteration = false
@@ -237,6 +251,15 @@ main :: proc() {
 	//////////////
 
 	sdl.Quit()
+}
+
+set_line_indeces_and_number_of_lines :: proc(lines: ^[dynamic]Line) {
+	i: int
+	for ; i < len(lines); i += 1 {
+		lines[i].index = i
+	}
+	number_of_lines = i
+	// fmt.println("number_of_lines: ", number_of_lines)
 }
 
 calculate_app_time :: proc(app_time: ^App_Time) {
@@ -277,3 +300,4 @@ error_and_exit :: proc(category := sdl.LogCategory.APPLICATION) {
 // This line is just here for security in case file read cuts data.
 // This line is just here for security in case file read cuts data.
 // This line is just here for security in case file read cuts data.
+// LAST LINE
