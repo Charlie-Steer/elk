@@ -5,6 +5,8 @@ import cs "charlie"
 
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
+import osdl "sdl3_wrapper"
+import ottf "sdl3_ttf_wrapper"
 
 import "core:c"
 import "core:os"
@@ -18,9 +20,10 @@ fVec2 :: [2]f32
 fVec3 :: [3]f32
 fVec4 :: [4]f32
 Color :: fVec4
-iVec2 :: [2]i32
-iVec3 :: [3]i32
-iVec4 :: [4]i32
+iVec2 :: [2]int
+iVec3 :: [3]int
+iVec4 :: [4]int
+SECOND :: 1_000_000_000
 
 Window :: struct {
 	handle: ^sdl.Window,
@@ -111,25 +114,21 @@ get_indeces_for_lines_in_view :: proc(lines: [dynamic]Line) -> (start_index, end
 	return start_index, end_index
 }
 
-next_second: f64 = 1
-fps_texture: ^sdl.Texture
-frames_this_second: int
 main :: proc() {
 	///////////
 	// START //
 	///////////
 
-	// sdl.SetHint(sdl.
 	ok := sdl.SetAppMetadata("Elk", "0.1", "dev.charlie.elk"); assert(ok)
 	ok = sdl.Init(sdl.InitFlags{.VIDEO}); assert(ok)
 	window_flags := sdl.WindowFlags{
-		.BORDERLESS,
+		// .BORDERLESS,
 		// .RESIZABLE,
 		// .FULLSCREEN,
 		// .MAXIMIZED,
 	}
 	// NOTE: window width and height could be stored in persistent data across restarts.
-	ok = sdl.CreateWindowAndRenderer("Elk", i32(window.width), i32(window.height), window_flags, &window.handle, &renderer); assert(ok)
+	ok = osdl.CreateWindowAndRenderer("Elk", window.width, window.height, window_flags, &window.handle, &renderer); assert(ok)
 
 	ok = ttf.Init(); if !ok do panic("Failed to init SDL3_ttf\n")
 
@@ -138,7 +137,7 @@ main :: proc() {
 	if (font.handle == nil) do error_and_exit()
 	defer ttf.CloseFont(font.handle)
 	font.height = int(ttf.GetFontLineSkip(font.handle))
-	ok = ttf.GetGlyphMetrics(font.handle, ' ', nil, nil, nil, nil, transmute(^i32)&font.width)
+	ok = ottf.GetGlyphMetrics(font.handle, ' ', nil, nil, nil, nil, &font.width)
 	if !ok {
 		error_and_exit()
 	}
@@ -165,87 +164,63 @@ main :: proc() {
 		}
 	}
 
-	global_frame_counter: u64 // NOTE: DELETE?
 	first_iteration := true // NOTE: For testing purposes.
 
 	///////////
 	// FRAME //
 	///////////
 
+	frames_this_second: int
+	last_second_time: u64
 	for !window.should_close {
+		sdl.RenderClear(renderer)
 		run_events()
 
-		// Update baseline data.
+		frame_start_time := sdl.GetTicksNS()
+		// frame_start_time := sdl.GetTicksNS()
+		// if (frame_start_time - last_second_time > SECOND) {
+		// 	last_second_time = frame_start_time
+		// 	fmt.println("fps: ", frames_this_second)
+		// 	frames_this_second = 0
+		// }
+
+		// Update state.
 		number_of_lines_that_fit_on_screen := window.height / font.height
 		view.line = clamp(view.line, -max_view_lines_above_text, len(lines) - number_of_lines_that_fit_on_screen + max_view_lines_under_text)
 		view.column = cs.clamp_min(view.column, -max_view_lines_left_of_text)
+		view.position = { f32(view.column) * f32(font.width), f32(view.line) * f32(font.height) }
 
 		set_line_indeces_and_number_of_lines(&lines) // NOTE: Could be done upon edits instead.
 
-		sdl.GetRenderOutputSize(renderer, transmute(^i32)(&window.width), transmute(^i32)(&window.height))
-		sdl.SetWindowSize(window.handle, i32(window.width), i32(window.height)) // WARNING: According to research this seems to perform a system call on every call.
+		// Update window.
+		osdl.GetRenderOutputSize(renderer, &window.width, &window.height)
+		// osdl.SetWindowSize(window.handle, window.width, window.height) // WARNING: This is INCLEDIBLY expensive.
 
-		view.position = { f32(view.column) * f32(font.width), f32(view.line) * f32(font.height) }
-
+		// Rendering.
 		background_color := Color{ 0, 0, 0.3, 1 }
 		fill_screen(background_color)
 		index_first, index_last := get_indeces_for_lines_in_view(lines)
 		render_lines(lines, index_first, index_last)
 
-		if (show_fps_counter) {
-			fps_texture_width, fps_texture_height: f32
-			sdl.GetTextureSize(fps_texture, &fps_texture_width, &fps_texture_height)
-			fps_dst := sdl.FRect {
-				x = (f32(window_width) - fps_texture_width),
-				y = 0,
-				w = fps_texture_width,
-				h = fps_texture_height,
-			}
-			sdl.RenderTexture(renderer, fps_texture, nil, &fps_dst)
-		}
-
 		sdl.RenderPresent(renderer)
 		first_iteration = false
 
-		// NOTE: WIP
-		if (show_fps_counter) {
-			render_fps_to_texture :: proc() -> ^sdl.Texture{
-				frames_this_second_text : [16]u8
-				strconv.itoa(frames_this_second_text[:], frames_this_second)
-				fps_surface := ttf.RenderText_Blended(font.handle, strings.unsafe_string_to_cstring(string(frames_this_second_text[:])), 0, colors.YELLOW)
-				fps_texture = sdl.CreateTextureFromSurface(renderer, fps_surface)
-				return fps_texture
+		frame_end_time := sdl.GetTicksNS()
+		if (lock_framerate) {
+			alloted_frame_time := u64(1_000_000_000 / target_fps)
+			excedent_frame_time := (frame_start_time + alloted_frame_time) - frame_end_time
+			if (excedent_frame_time > 0) {
+				time.sleep(time.Duration(excedent_frame_time))
 			}
+		}
+		frames_this_second += 1
 
-			frames_this_second += 1
-			global_frame_counter += 1
-
-			calculate_app_time(&app_time);
-
-			if (lock_framerate) {
-				// frame_stabilization
-				ensure(frames_this_second > 0)
-				one_frame_duration := time.Duration((1 / f64(fps_limit)) * 1_000_000_000) // NOTE: Constant calculation.
-				next_frame_target_time := one_frame_duration * time.Duration(global_frame_counter)
-				if app_time.ns < next_frame_target_time {
-					time.sleep(next_frame_target_time - app_time.ns)
-				} else if (app_time.ns >= next_frame_target_time) {
-					next_frame_target_time += one_frame_duration
-				}
-			}
-
-			if (app_time.s >= next_second) {
-				if (lock_framerate) {
-					missed_seconds := cs.clamp_min(math.floor(app_time.s - next_second), 0)
-					fmt.println(app_time.s)
-					fmt.printfln("Second %v frames: %v", next_second, frames_this_second)
-					next_second += missed_seconds + 1
-				}
-
-				render_fps_to_texture()
-
-				frames_this_second = 0
-			}
+		frame_end_time = sdl.GetTicksNS()
+		// fmt.println("frame_end_time: ", frame_end_time)
+		if (frame_end_time - last_second_time > SECOND) {
+			last_second_time = frame_end_time
+			fmt.println("fps: ", frames_this_second)
+			frames_this_second = 0
 		}
 	}
 
@@ -265,10 +240,13 @@ set_line_indeces_and_number_of_lines :: proc(lines: ^[dynamic]Line) {
 	// fmt.println("number_of_lines: ", number_of_lines)
 }
 
-calculate_app_time :: proc(app_time: ^App_Time) {
-	app_time.ns = time.Duration(sdl.GetTicksNS())
-	app_time.ms = f64(app_time.ns) / 1_000_000
-	app_time.s = app_time.ms / 1_000
+calculate_app_time :: proc() -> App_Time {
+	app_time := App_Time {
+		ns = time.Duration(sdl.GetTicksNS()),
+		ms = f64(app_time.ns) / 1_000_000,
+		s = app_time.ms / 1_000,
+	}
+	return app_time
 }
 
 fill_screen :: proc(color: Color) {

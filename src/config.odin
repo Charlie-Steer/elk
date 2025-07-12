@@ -15,4 +15,4 @@ debug_rendering := false
 
 show_fps_counter := true
 lock_framerate := false
-fps_limit := 60
+target_fps := 60
