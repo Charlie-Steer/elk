@@ -48,8 +48,8 @@ render_lines :: proc(lines: [dynamic]Line, index_first, index_last: int) {
 	sdl.SetRenderDrawColor(renderer, 0x24, 0x28, 0x3b, 0xff)
 	sdl.RenderFillRect(renderer, &background_rect)
 	
-	fmt.println("first: ", index_first)
-	fmt.println("last: ", index_last)
+	// fmt.println("first: ", index_first)
+	// fmt.println("last: ", index_last)
 	line_vertical_offset: f32
 	// fmt.println("before: ", view.position.x)
 	// fmt.println("after: ", cs.clamp_min(view.position.x, 0))
@@ -97,7 +97,6 @@ render_lines :: proc(lines: [dynamic]Line, index_first, index_last: int) {
 			h = src.h,
 		}
 
-		fmt.println("id: ", line.index)
 		if debug_rendering == true {
 			if (line.index == index_first || line.index == index_last) do sdl.SetRenderDrawColor(renderer, 0, 255, 0, 255)
 			else do sdl.SetRenderDrawColor(renderer, 255, 0, 0, 255)

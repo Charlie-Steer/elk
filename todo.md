@@ -1,8 +1,10 @@
 # On sight:
 
-- FPS counter.
-
+- Rework FPS lock logic to relative method.
+- Solve lock FPS application freeze bug.
+- Refactor this madness.
 - Clean-up my types.
+
 - Cursor.
 - Editing.
 
@@ -22,5 +24,5 @@
 
 # Potential niceties:
 
+- Double buffering
 - Single draw call?
-- Double buffering?

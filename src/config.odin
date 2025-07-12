@@ -12,3 +12,7 @@ max_view_lines_above_text, max_view_lines_under_text := 1, 2
 max_view_lines_left_of_text, max_view_lines_right_of_text := 0, 1
 
 debug_rendering := false
+
+show_fps_counter := true
+lock_framerate := false
+fps_limit := 60
