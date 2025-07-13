@@ -122,9 +122,9 @@ main :: proc() {
 	ok := sdl.SetAppMetadata("Elk", "0.1", "dev.charlie.elk"); assert(ok)
 	ok = sdl.Init(sdl.InitFlags{.VIDEO}); assert(ok)
 	window_flags := sdl.WindowFlags{
-		// .BORDERLESS,
+		.BORDERLESS,
 		// .RESIZABLE,
-		// .FULLSCREEN,
+		.FULLSCREEN,
 		// .MAXIMIZED,
 	}
 	// NOTE: window width and height could be stored in persistent data across restarts.
@@ -171,18 +171,14 @@ main :: proc() {
 	///////////
 
 	frames_this_second: int
+	frames_last_second: int
 	last_second_time: u64
+	fps_texture: ^sdl.Texture
 	for !window.should_close {
 		sdl.RenderClear(renderer)
 		run_events()
 
 		frame_start_time := sdl.GetTicksNS()
-		// frame_start_time := sdl.GetTicksNS()
-		// if (frame_start_time - last_second_time > SECOND) {
-		// 	last_second_time = frame_start_time
-		// 	fmt.println("fps: ", frames_this_second)
-		// 	frames_this_second = 0
-		// }
 
 		// Update state.
 		number_of_lines_that_fit_on_screen := window.height / font.height
@@ -202,8 +198,13 @@ main :: proc() {
 		index_first, index_last := get_indeces_for_lines_in_view(lines)
 		render_lines(lines, index_first, index_last)
 
+		if (show_fps_counter) do draw_fps_counter(renderer, fps_texture)
+
 		sdl.RenderPresent(renderer)
 		first_iteration = false
+
+
+		// Time end.
 
 		frame_end_time := sdl.GetTicksNS()
 		if (lock_framerate) {
@@ -216,8 +217,12 @@ main :: proc() {
 		frames_this_second += 1
 
 		frame_end_time = sdl.GetTicksNS()
-		// fmt.println("frame_end_time: ", frame_end_time)
 		if (frame_end_time - last_second_time > SECOND) {
+			if show_fps_counter {
+				fps_char_buf: [16]u8
+				fps_surface := ttf.RenderText_Blended(font.handle, strings.unsafe_string_to_cstring(strconv.itoa(fps_char_buf[:], frames_this_second)), 0, colors.YELLOW)
+				fps_texture = sdl.CreateTextureFromSurface(renderer, fps_surface)
+			}
 			last_second_time = frame_end_time
 			fmt.println("fps: ", frames_this_second)
 			frames_this_second = 0
@@ -229,6 +234,17 @@ main :: proc() {
 	/////////
 
 	sdl.Quit()
+}
+
+draw_fps_counter :: proc(renderer: ^sdl.Renderer, fps_texture: ^sdl.Texture) {
+	src, dst: osdl.fRect
+
+	src.dimensions, _ = osdl.GetTextureSize(fps_texture)
+
+	dst.dimensions = src.dimensions
+	dst.position.x = f32(window.width) - src.dimensions.x
+
+	osdl.RenderTexture(renderer, fps_texture, &src, &dst)
 }
 
 set_line_indeces_and_number_of_lines :: proc(lines: ^[dynamic]Line) {
@@ -295,9 +311,10 @@ run_events :: proc() {
 				view.column += 1;
 			} else if e.key.scancode == .D {
 				debug_rendering = !debug_rendering
-				show_fps_counter = debug_rendering
-			} else if e.key.scancode == .F {
+			} else if (e.key.scancode == .F) && (e.key.mod & sdl.KMOD_SHIFT != sdl.KMOD_NONE) {
 				lock_framerate = !lock_framerate
+			} else if (e.key.scancode == .F && e.key.mod == sdl.KMOD_NONE) {
+				show_fps_counter = !show_fps_counter
 			}
 		}
 	}
