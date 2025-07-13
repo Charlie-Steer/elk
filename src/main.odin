@@ -70,6 +70,8 @@ Font :: struct {
 Cursor :: struct {
 	location: iVec2,
 	rect: fRect,
+	max_column_in_memory: int,
+	current_line: ^Line,
 }
 
 cursor: Cursor
@@ -98,6 +100,7 @@ App_Time :: struct {
 app_time: App_Time;
 
 number_of_lines: int
+lines: [dynamic]Line
 
 open_file :: proc(filename: string) -> os.Handle {
 	file, err := os.open(filename, os.O_RDONLY)
@@ -123,8 +126,8 @@ get_file_content :: proc(file: os.Handle) -> string {
 }
 
 get_indeces_for_lines_in_view :: proc(lines: [dynamic]Line) -> (start_index, end_index: int) {
-	start_index = cs.clamp_min(view.line, 0)
-	end_index = clamp(view.line + (window.height / font.height) - 1, 0, number_of_lines - 1)
+	start_index = cs.get_clamped_min(view.line, 0)
+	end_index = cs.get_clamped(view.line + (window.height / font.height) - 1, 0, number_of_lines - 1)
 	return start_index, end_index
 }
 
@@ -163,7 +166,7 @@ main :: proc() {
 
 	file_content := get_file_content(file)
 	text_string := expand_tabs(file_content, 4)
-	lines := split_string_in_line_structs(text_string)
+	lines = split_string_in_line_structs(text_string)
 
 	// WARNING: This is done for every line whether it fits on screen or not.
 	for &line, i in lines {
@@ -196,8 +199,8 @@ main :: proc() {
 
 		// Update state.
 		number_of_lines_that_fit_on_screen := window.height / font.height
-		view.line = clamp(view.line, -max_view_lines_above_text, len(lines) - number_of_lines_that_fit_on_screen + max_view_lines_under_text)
-		view.column = cs.clamp_min(view.column, -max_view_lines_left_of_text)
+		cs.clamp(&view.line, -max_view_lines_above_text, len(lines) - number_of_lines_that_fit_on_screen + max_view_lines_under_text)
+		cs.clamp_min(&view.column, -max_view_lines_left_of_text)
 		view.position = { f32(view.column) * f32(font.width), f32(view.line) * f32(font.height) }
 
 		set_line_indeces_and_number_of_lines(&lines) // NOTE: Could be done upon edits instead.
@@ -214,19 +217,7 @@ main :: proc() {
 		render_lines(lines, index_first, index_last)
 
 		// Cursor.
-		update_and_render_cursor :: proc(cursor: ^Cursor) {
-			cursor_location := [2]f32{f32(cursor.location.x), f32(cursor.location.y)}
-			font_dimensions := [2]f32{f32(font.width), f32(font.height)}
-			cursor.rect = fRect {
-				position = cursor_location * font_dimensions,
-				dimensions = {f32(font.width), f32(font.height)}
-			}
-			// sdl.SetRenderDrawColor(renderer, 255, 255, 255, 160)
-			osdl.SetRenderDrawColorFloat(renderer, {1, 1, 1, 0.65})
-			sdl.SetRenderDrawBlendMode(renderer, sdl.BlendMode{.BLEND})
-			osdl.RenderFillRect(renderer, cursor.rect)
-		}
-		update_and_render_cursor(&cursor)
+		update_and_render_cursor(&cursor, index_first)
 
 		if (show_fps_counter) do draw_fps_counter(renderer, fps_texture)
 
@@ -332,13 +323,17 @@ run_events :: proc() {
 			} else if e.key.scancode == .ESCAPE || e.key.scancode == .Q {
 				window.should_close = true
 			} else if e.key.scancode == .H && e.key.mod == sdl.KMOD_NONE {
-				cursor.location.x -= 1
+				// cursor.location.x -= 1
+				move_cursor(&cursor, .LEFT)
 			} else if e.key.scancode == .J && e.key.mod == sdl.KMOD_NONE {
-				cursor.location.y += 1
+				// cursor.location.y += 1
+				move_cursor(&cursor, .DOWN)
 			} else if e.key.scancode == .K && e.key.mod == sdl.KMOD_NONE {
-				cursor.location.y -= 1
+				// cursor.location.y -= 1
+				move_cursor(&cursor, .UP)
 			} else if e.key.scancode == .L && e.key.mod == sdl.KMOD_NONE {
-				cursor.location.x += 1
+				// cursor.location.x += 1
+				move_cursor(&cursor, .RIGHT)
 			} else if e.key.scancode == .H && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
 				view.column -= 1;
 			} else if e.key.scancode == .J && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {

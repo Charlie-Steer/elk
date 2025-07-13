@@ -63,11 +63,11 @@ render_lines :: proc(lines: [dynamic]Line, index_first, index_last: int) {
 		// src_rect_y_position := clamp(view.position.y, 0, f32(texture.h))
 		src := sdl.FRect{
 			// x = view.position.x,
-			x = cs.clamp_min(view.position.x, 0),
+			x = cs.get_clamped_min(view.position.x, 0),
 			y = 0,
 			// w = min(f32(texture.w) - clamp(view.position.x, 0, view.position.x), frame.w),
 			// w = min(f32(texture.w) - view.position.x, frame.w),
-			w = min(f32(texture.w) - cs.clamp_min(view.position.x, 0), frame.w),
+			w = min(f32(texture.w) - cs.get_clamped_min(view.position.x, 0), frame.w),
 			// w = min(f32(texture.w), frame.w),
 			h = min(f32(texture.h), frame.h),
 		}

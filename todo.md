@@ -1,7 +1,9 @@
 # On sight:
 
-- Cap cursor location.x to len(current_line).
-- Cursor x position memory until up-down movement is broken.
+- Cursor:
+    - BUG: max lateral position isn't capped when view to the right.
+    - Cap vertical location to first line on screen (take view overshoot into account).
+    - Scroll when moving beyond view edge.
 
 - Clean-up types.
 - Refactor time stuff into procs.
