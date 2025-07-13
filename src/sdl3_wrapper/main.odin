@@ -3,13 +3,20 @@ package sdl3_wrapper
 import sdl "vendor:sdl3"
 import "core:c"
 
-fVec2 :: [2]f32
-fVec3 :: [3]f32
-fVec4 :: [4]f32
-Color :: fVec4
 iVec2 :: [2]int
 iVec3 :: [3]int
 iVec4 :: [4]int
+iColor :: iVec4
+fVec2 :: [2]f32
+fVec3 :: [3]f32
+fVec4 :: [4]f32
+fColor :: fVec4
+Color :: fColor
+
+iRect :: struct {
+	position: iVec2,
+	dimensions: iVec2,
+}
 
 fRect :: struct {
 	position: fVec2,
@@ -56,4 +63,20 @@ RenderTexture :: proc(renderer: ^sdl.Renderer, texture: ^sdl.Texture, src_rect, 
 GetTextureSize :: proc(texture: ^sdl.Texture) -> (dimensions: fVec2, ok: bool) {
 	ok = sdl.GetTextureSize(texture, &dimensions.x, &dimensions.y)
 	return dimensions, ok
+}
+
+RenderFillRect :: proc(renderer: ^sdl.Renderer, rect: fRect) -> (ok: bool) {
+	sdl_frect := sdl.FRect {
+		x = rect.position.x,
+		y = rect.position.y,
+		w = rect.dimensions.x,
+		h = rect.dimensions.y,
+	}
+	ok = sdl.RenderFillRect(renderer, &sdl_frect)
+	return ok
+}
+
+SetRenderDrawColorFloat :: proc(renderer: ^sdl.Renderer, color: Color) -> (ok: bool) {
+	ok = sdl.SetRenderDrawColorFloat(renderer, color.r, color.g, color.b, color.a)
+	return ok
 }

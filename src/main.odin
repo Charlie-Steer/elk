@@ -16,13 +16,20 @@ import "core:math"
 import "core:time"
 import "core:strconv"
 
-fVec2 :: [2]f32
-fVec3 :: [3]f32
-fVec4 :: [4]f32
-Color :: fVec4
 iVec2 :: [2]int
 iVec3 :: [3]int
 iVec4 :: [4]int
+iColor :: iVec4
+
+fVec2 :: [2]f32
+fVec3 :: [3]f32
+fVec4 :: [4]f32
+fColor :: fVec4
+Color :: fColor
+
+fRect :: osdl.fRect
+iRect :: osdl.iRect
+
 SECOND :: 1_000_000_000
 
 Window :: struct {
@@ -59,6 +66,13 @@ Font :: struct {
 	height: int,
 	width: int,
 }
+
+Cursor :: struct {
+	location: iVec2,
+	rect: fRect,
+}
+
+cursor: Cursor
 
 window := Window {
 	width = window_width,
@@ -190,13 +204,29 @@ main :: proc() {
 
 		// Update window.
 		osdl.GetRenderOutputSize(renderer, &window.width, &window.height)
-		// osdl.SetWindowSize(window.handle, window.width, window.height) // WARNING: This is INCLEDIBLY expensive.
+		// osdl.SetWindowSize(window.handle, window.width, window.height) // WARNING: This is INCREDIBLY expensive.
 
 		// Rendering.
+		sdl.SetRenderDrawBlendMode(renderer, sdl.BlendMode{})
 		background_color := Color{ 0, 0, 0.3, 1 }
 		fill_screen(background_color)
 		index_first, index_last := get_indeces_for_lines_in_view(lines)
 		render_lines(lines, index_first, index_last)
+
+		// Cursor.
+		update_and_render_cursor :: proc(cursor: ^Cursor) {
+			cursor_location := [2]f32{f32(cursor.location.x), f32(cursor.location.y)}
+			font_dimensions := [2]f32{f32(font.width), f32(font.height)}
+			cursor.rect = fRect {
+				position = cursor_location * font_dimensions,
+				dimensions = {f32(font.width), f32(font.height)}
+			}
+			// sdl.SetRenderDrawColor(renderer, 255, 255, 255, 160)
+			osdl.SetRenderDrawColorFloat(renderer, {1, 1, 1, 0.65})
+			sdl.SetRenderDrawBlendMode(renderer, sdl.BlendMode{.BLEND})
+			osdl.RenderFillRect(renderer, cursor.rect)
+		}
+		update_and_render_cursor(&cursor)
 
 		if (show_fps_counter) do draw_fps_counter(renderer, fps_texture)
 
@@ -289,25 +319,33 @@ run_events :: proc() {
 			window.should_close = true
 		case .KEY_DOWN:
 			keycode := sdl.GetKeyFromScancode(e.key.scancode, e.key.mod, false)
-			if keycode == 'J' {
+			if keycode == 'H' {
+				view.column -= (window.width / font.width) / 2
+			} else if keycode == 'J' {
 				view.line += (window.height / font.height) / 2
 				// fmt.println(window.height, font.height, (window.height / font.height) / 2)
 			} else if keycode == 'K' {
 				view.line -= (window.height / font.height) / 2
 				// fmt.println(window.height, font.height, (window.height / font.height) / 2)
-			} else if keycode == 'H' {
-				view.column -= (window.width / font.width) / 2
 			} else if keycode == 'L' {
 				view.column += (window.width / font.width) / 2
 			} else if e.key.scancode == .ESCAPE || e.key.scancode == .Q {
 				window.should_close = true
-			} else if e.key.scancode == .J {
-				view.line += 1;
-			} else if e.key.scancode == .K {
-				view.line -= 1;
-			} else if e.key.scancode == .H {
+			} else if e.key.scancode == .H && e.key.mod == sdl.KMOD_NONE {
+				cursor.location.x -= 1
+			} else if e.key.scancode == .J && e.key.mod == sdl.KMOD_NONE {
+				cursor.location.y += 1
+			} else if e.key.scancode == .K && e.key.mod == sdl.KMOD_NONE {
+				cursor.location.y -= 1
+			} else if e.key.scancode == .L && e.key.mod == sdl.KMOD_NONE {
+				cursor.location.x += 1
+			} else if e.key.scancode == .H && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
 				view.column -= 1;
-			} else if e.key.scancode == .L {
+			} else if e.key.scancode == .J && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
+				view.line += 1;
+			} else if e.key.scancode == .K && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
+				view.line -= 1;
+			} else if e.key.scancode == .L && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
 				view.column += 1;
 			} else if e.key.scancode == .D {
 				debug_rendering = !debug_rendering

@@ -1,11 +1,14 @@
 # On sight:
 
-- Rework FPS lock logic to relative method.
-- Solve lock FPS application freeze bug.
-- Refactor this madness.
-- Clean-up my types.
+- Cap cursor location.x to len(current_line).
+- Cursor x position memory until up-down movement is broken.
 
-- Cursor.
+- Clean-up types.
+- Refactor time stuff into procs.
+- Move procs in main to other files.
+
+-----------------------------------------------------
+
 - Editing.
 
 - Rethink margins. Inner margin (within text area) and outside margin?
@@ -15,7 +18,6 @@
 
 # Non-pressing:
 
-- Fixed framerate.
 - Hot reload.
 - Line numbers.
 - Resizeability.
@@ -27,6 +29,8 @@
 - Double buffering
 - Single draw call?
 
+
+
 # Wishlist:
 ## Important
 - Syntax Highlighting (Treesitter?).
@@ -37,6 +41,7 @@
 - Integrated terminal.
 - File and function pins.
 - Improved comments.
+- Line-coloring?
 - Info bar:
     - filename.
     - Error number.
