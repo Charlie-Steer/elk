@@ -1,7 +1,7 @@
 package main
 
 import "colors"
-import cs "charlie"
+import u "charlie-utils"
 
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
@@ -52,26 +52,12 @@ Text :: struct {
 	size: fVec2,
 }
 
-View :: struct {
-	line: int,
-	column: int,
-	position: fVec2,
-	size: fVec2,
-	window: sdl.FRect,
-}
-
+// TODO: Refactor height and width into char_dimensions vector.
 Font :: struct {
 	handle: ^ttf.Font,
 	size: int,
 	height: int,
 	width: int,
-}
-
-Cursor :: struct {
-	location: iVec2,
-	rect: fRect,
-	max_column_in_memory: int,
-	current_line: ^Line,
 }
 
 cursor: Cursor
@@ -126,8 +112,8 @@ get_file_content :: proc(file: os.Handle) -> string {
 }
 
 get_indeces_for_lines_in_view :: proc(lines: [dynamic]Line) -> (start_index, end_index: int) {
-	start_index = cs.get_clamped_min(view.line, 0)
-	end_index = cs.get_clamped(view.line + (window.height / font.height) - 1, 0, number_of_lines - 1)
+	start_index = u.get_clamped_min(view.text_location.y, 0)
+	end_index = u.get_clamped(view.text_location.y + (window.height / font.height) - 1, 0, number_of_lines - 1)
 	return start_index, end_index
 }
 
@@ -141,7 +127,7 @@ main :: proc() {
 	window_flags := sdl.WindowFlags{
 		.BORDERLESS,
 		// .RESIZABLE,
-		.FULLSCREEN,
+		// .FULLSCREEN,
 		// .MAXIMIZED,
 	}
 	// NOTE: window width and height could be stored in persistent data across restarts.
@@ -191,6 +177,8 @@ main :: proc() {
 	frames_last_second: int
 	last_second_time: u64
 	fps_texture: ^sdl.Texture
+	upkeep_view(&view, cursor)
+	// upkeep_cursor(&cursor, view)
 	for !window.should_close {
 		sdl.RenderClear(renderer)
 		run_events()
@@ -198,10 +186,11 @@ main :: proc() {
 		frame_start_time := sdl.GetTicksNS()
 
 		// Update state.
-		number_of_lines_that_fit_on_screen := window.height / font.height
-		cs.clamp(&view.line, -max_view_lines_above_text, len(lines) - number_of_lines_that_fit_on_screen + max_view_lines_under_text)
-		cs.clamp_min(&view.column, -max_view_lines_left_of_text)
-		view.position = { f32(view.column) * f32(font.width), f32(view.line) * f32(font.height) }
+		number_of_lines = len(lines)
+
+		upkeep_view(&view, cursor)
+		if first_iteration do fmt.println("view.dimensions_in_chars: ", view.dimensions_in_chars)
+		// upkeep_cursor(&cursor, view)
 
 		set_line_indeces_and_number_of_lines(&lines) // NOTE: Could be done upon edits instead.
 
@@ -213,11 +202,19 @@ main :: proc() {
 		sdl.SetRenderDrawBlendMode(renderer, sdl.BlendMode{})
 		background_color := Color{ 0, 0, 0.3, 1 }
 		fill_screen(background_color)
+
+		// NOTE: index_first and index_last should probably be a part of the view struct.
 		index_first, index_last := get_indeces_for_lines_in_view(lines)
-		render_lines(lines, index_first, index_last)
+
+		frame := sdl.FRect{
+			w = f32(window.width),
+			h = f32(window.height),
+		}
+		render_background(frame, index_first, index_last)
+		render_lines(frame, lines, index_first, index_last)
 
 		// Cursor.
-		update_and_render_cursor(&cursor, index_first)
+		render_cursor(&cursor, index_first)
 
 		if (show_fps_counter) do draw_fps_counter(renderer, fps_texture)
 
@@ -245,7 +242,7 @@ main :: proc() {
 				fps_texture = sdl.CreateTextureFromSurface(renderer, fps_surface)
 			}
 			last_second_time = frame_end_time
-			fmt.println("fps: ", frames_this_second)
+			// fmt.println("fps: ", frames_this_second)
 			frames_this_second = 0
 		}
 	}
@@ -311,37 +308,33 @@ run_events :: proc() {
 		case .KEY_DOWN:
 			keycode := sdl.GetKeyFromScancode(e.key.scancode, e.key.mod, false)
 			if keycode == 'H' {
-				view.column -= (window.width / font.width) / 2
+				view.text_location.x -= (window.width / font.width) / 2
 			} else if keycode == 'J' {
-				view.line += (window.height / font.height) / 2
+				view.text_location.y += (window.height / font.height) / 2
 				// fmt.println(window.height, font.height, (window.height / font.height) / 2)
 			} else if keycode == 'K' {
-				view.line -= (window.height / font.height) / 2
+				view.text_location.y -= (window.height / font.height) / 2
 				// fmt.println(window.height, font.height, (window.height / font.height) / 2)
 			} else if keycode == 'L' {
-				view.column += (window.width / font.width) / 2
+				view.text_location.x += (window.width / font.width) / 2
 			} else if e.key.scancode == .ESCAPE || e.key.scancode == .Q {
 				window.should_close = true
 			} else if e.key.scancode == .H && e.key.mod == sdl.KMOD_NONE {
-				// cursor.location.x -= 1
-				move_cursor(&cursor, .LEFT)
+				move_cursor(&cursor, .LEFT, lines)
 			} else if e.key.scancode == .J && e.key.mod == sdl.KMOD_NONE {
-				// cursor.location.y += 1
-				move_cursor(&cursor, .DOWN)
+				move_cursor(&cursor, .DOWN, lines)
 			} else if e.key.scancode == .K && e.key.mod == sdl.KMOD_NONE {
-				// cursor.location.y -= 1
-				move_cursor(&cursor, .UP)
+				move_cursor(&cursor, .UP, lines)
 			} else if e.key.scancode == .L && e.key.mod == sdl.KMOD_NONE {
-				// cursor.location.x += 1
-				move_cursor(&cursor, .RIGHT)
+				move_cursor(&cursor, .RIGHT, lines)
 			} else if e.key.scancode == .H && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
-				view.column -= 1;
+				move_view(&view, .LEFT)
 			} else if e.key.scancode == .J && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
-				view.line += 1;
+				move_view(&view, .DOWN)
 			} else if e.key.scancode == .K && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
-				view.line -= 1;
+				move_view(&view, .UP)
 			} else if e.key.scancode == .L && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
-				view.column += 1;
+				move_view(&view, .RIGHT)
 			} else if e.key.scancode == .D {
 				debug_rendering = !debug_rendering
 			} else if (e.key.scancode == .F) && (e.key.mod & sdl.KMOD_SHIFT != sdl.KMOD_NONE) {

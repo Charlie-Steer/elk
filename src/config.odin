@@ -3,7 +3,7 @@ package main
 window_width := 640
 window_height := 480
 
-font_size := 14
+font_size := 15
 
 margins := Margins{ 0, 0, 9, 0 }
 // margins := Margins{ 0, 0, 0, 0 }

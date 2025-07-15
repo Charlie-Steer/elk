@@ -1,4 +1,4 @@
-package charlie
+package charlie_utils
 
 clamp :: proc(value: ^$T, min, max: T) {
 	if value^ < min do value^ = min

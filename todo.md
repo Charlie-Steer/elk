@@ -1,21 +1,10 @@
 # On sight:
 
-- Cursor:
-    - BUG: max lateral position isn't capped when view to the right.
-    - Cap vertical location to first line on screen (take view overshoot into account).
-    - Scroll when moving beyond view edge.
-
 - Clean-up types.
 - Refactor time stuff into procs.
 - Move procs in main to other files.
 
------------------------------------------------------
-
 - Editing.
-
-- Rethink margins. Inner margin (within text area) and outside margin?
-- Setting right scroll limit relative to the longest line on screen.
-- Background right limit.
 
 
 # Non-pressing:
@@ -24,13 +13,13 @@
 - Line numbers.
 - Resizeability.
 
-- SDL3 and SDL3_ttf bindings rework?
-
-# Potential niceties:
+- (Cursor) Jump tabs by tabstop increments (careful not to do so with spaces).
+- Rethink margins. Inner margin (within text area) and outside margin?
+- Setting right scroll limit relative to the longest line on screen.
+- Background right limit.
 
 - Double buffering
 - Single draw call?
-
 
 
 # Wishlist:
@@ -41,7 +30,10 @@
     - Suggestions and autocomplete.
     - Renaming.
 - Integrated terminal.
+
 - File and function pins.
+- Different cursor-view model (view follows cursor but cursor doesn't follow view.)
+
 - Improved comments.
 - Line-coloring?
 - Info bar:
