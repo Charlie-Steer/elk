@@ -14,6 +14,8 @@ Cursor :: struct {
 	max_column_in_memory: int,
 }
 
+cursor: Cursor
+
 Direction :: enum {
 	LEFT,
 	DOWN,
@@ -64,6 +66,7 @@ update_cursor_in_view :: proc(cursor: ^Cursor) {
 		position = cursor_view_location * font_dimensions,
 		dimensions = font_dimensions,
 	}
+	// cursor.rect.position = cursor_view_location * [2]f32{f32(font.width), f32(font.height)}
 }
 
 make_cursor_follow_view :: proc(cursor: ^Cursor, view: View) {

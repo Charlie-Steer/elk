@@ -5,11 +5,11 @@ import osdl "sdl3_wrapper"
 import u "charlie-utils"
 
 View :: struct {
-	// line: int,
-	// column: int,
+	// TODO: Refactor into iRect
 	text_location: iVec2,
 	dimensions_in_chars: iVec2,
 
+	// TODO: Position + size vs rect is completely redundant wtf.
 	position: fVec2,
 	size: fVec2,
 	rect: sdl.FRect,

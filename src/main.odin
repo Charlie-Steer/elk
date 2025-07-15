@@ -34,8 +34,11 @@ SECOND :: 1_000_000_000
 
 Window :: struct {
 	handle: ^sdl.Window,
+	
+	// TODO: refactor into rect or at least vectors.
 	x, y: int,
 	width, height: int,
+
 	should_close: bool,
 }
 
@@ -46,21 +49,14 @@ Line :: struct {
 	index: int,
 }
 
-Text :: struct {
-	string: cstring,
-	texture: ^sdl.Texture,
-	size: fVec2,
-}
-
-// TODO: Refactor height and width into char_dimensions vector.
 Font :: struct {
 	handle: ^ttf.Font,
 	size: int,
+
+	// TODO: Refactor height and width into char_dimensions vector.
 	height: int,
 	width: int,
 }
-
-cursor: Cursor
 
 window := Window {
 	width = window_width,
@@ -178,7 +174,7 @@ main :: proc() {
 	last_second_time: u64
 	fps_texture: ^sdl.Texture
 	upkeep_view(&view, cursor)
-	// upkeep_cursor(&cursor, view)
+	cursor.rect.dimensions = {f32(font.width), f32(font.height)}
 	for !window.should_close {
 		sdl.RenderClear(renderer)
 		run_events()
