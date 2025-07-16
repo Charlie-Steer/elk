@@ -8,10 +8,10 @@ import "core:fmt"
 Cursor :: struct {
 	text_location: iVec2,
 	view_location: iVec2,
-	// current_line: ^Line,
+
 	rect: fRect,
 
-	max_column_in_memory: int,
+	column_in_memory: int,
 }
 
 cursor: Cursor
@@ -43,9 +43,9 @@ move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line)
 
 	if (direction == .LEFT || direction == .RIGHT) {
 		clamp_x()
-		cursor.max_column_in_memory = cursor.text_location.x
+		cursor.column_in_memory = cursor.text_location.x
 	} else if (direction == .DOWN || direction == .UP) {
-		cursor.text_location.x = cursor.max_column_in_memory
+		cursor.text_location.x = cursor.column_in_memory
 		u.clamp(&cursor.text_location.y, 0, number_of_lines)
 		clamp_x()
 	}
@@ -54,38 +54,38 @@ move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line)
 	update_cursor_in_view(cursor)
 	make_view_follow_cursor(&view, cursor^)
 	update_cursor_in_view(cursor)
-	fmt.println("MOVED CURSOR", view.text_location, cursor.text_location)
+	fmt.println("MOVED CURSOR", view.cell_rect.position, cursor.text_location)
 }
 
 update_cursor_in_view :: proc(cursor: ^Cursor) {
-	cursor.view_location = cursor.text_location - view.text_location
+	cursor.view_location = cursor.text_location - view.cell_rect.position
 
-	cursor_view_location := [2]f32{f32(cursor.view_location.x), f32(cursor.view_location.y)}
-	font_dimensions := [2]f32{f32(font.width), f32(font.height)}
 	cursor.rect = fRect {
-		position = cursor_view_location * font_dimensions,
-		dimensions = font_dimensions,
+		position = u.fVec(cursor.view_location) * u.fVec(font.dimensions),
+		dimensions = u.fVec(font.dimensions),
 	}
-	// cursor.rect.position = cursor_view_location * [2]f32{f32(font.width), f32(font.height)}
+	// cursor.rect.position = cursor_view_location * [2]f32{f32(font.dimensions.x), f32(font.height)}
 }
 
 make_cursor_follow_view :: proc(cursor: ^Cursor, view: View) {
 	fmt.println("Cursor:", cursor.text_location)
-	if cursor.text_location.x < view.text_location.x {
-		cursor.text_location.x = view.text_location.x
-	} else if cursor.text_location.x >= view.text_location.x + view.dimensions_in_chars.x {
-		cursor.text_location.x = view.text_location.x + view.dimensions_in_chars.x - 1
+	if cursor.text_location.x < view.cell_rect.position.x {
+		cursor.text_location.x = view.cell_rect.position.x
+		cursor.column_in_memory = cursor.text_location.x
+	} else if cursor.text_location.x >= view.cell_rect.position.x + view.cell_rect.dimensions.x {
+		cursor.text_location.x = view.cell_rect.position.x + view.cell_rect.dimensions.x - 1
+		cursor.column_in_memory = cursor.text_location.x
 	}
 
-	if cursor.text_location.y < view.text_location.y {
-		fmt.println("cursor was above view.", view.text_location, cursor.text_location)
-		cursor.text_location.y = view.text_location.y
-		cursor.text_location.x = cursor.max_column_in_memory
+	if cursor.text_location.y < view.cell_rect.position.y {
+		fmt.println("cursor was above view.", view.cell_rect.position, cursor.text_location)
+		cursor.text_location.y = view.cell_rect.position.y
+		cursor.text_location.x = cursor.column_in_memory
 		clamp_x()
-	} else if cursor.text_location.y >= view.text_location.y + view.dimensions_in_chars.y {
-		fmt.println("cursor was under view.", view.text_location, cursor.text_location)
-		cursor.text_location.y = view.text_location.y + view.dimensions_in_chars.y - 1
-		cursor.text_location.x = cursor.max_column_in_memory
+	} else if cursor.text_location.y >= view.cell_rect.position.y + view.cell_rect.dimensions.y {
+		fmt.println("cursor was under view.", view.cell_rect.position, cursor.text_location)
+		cursor.text_location.y = view.cell_rect.position.y + view.cell_rect.dimensions.y - 1
+		cursor.text_location.x = cursor.column_in_memory
 		clamp_x()
 	}
 
@@ -94,7 +94,7 @@ make_cursor_follow_view :: proc(cursor: ^Cursor, view: View) {
 
 // upkeep_cursor :: proc(cursor: ^Cursor, view: View) {
 // 	cursor_view_location := [2]f32{f32(cursor.view_location.x), f32(cursor.view_location.y)}
-// 	font_dimensions := [2]f32{f32(font.width), f32(font.height)}
+// 	font_dimensions := [2]f32{f32(font.dimensions.x), f32(font.height)}
 // 	cursor.rect = fRect {
 // 		position = cursor_view_location * font_dimensions,
 // 		dimensions = font_dimensions,

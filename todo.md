@@ -4,7 +4,11 @@
 - Refactor time stuff into procs.
 - Move procs in main to other files.
 
+- Make half-page jumps work.
+
 - Editing.
+
+- Frame drops printing.
 
 
 # Non-pressing:

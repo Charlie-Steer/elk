@@ -5,8 +5,8 @@ import u "charlie-utils"
 
 import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
-import osdl "sdl3_wrapper"
-import ottf "sdl3_ttf_wrapper"
+import wsdl "sdl3_wrapper"
+import wttf "sdl3_ttf_wrapper"
 
 import "core:c"
 import "core:os"
@@ -16,102 +16,18 @@ import "core:math"
 import "core:time"
 import "core:strconv"
 
-iVec2 :: [2]int
-iVec3 :: [3]int
-iVec4 :: [4]int
-iColor :: iVec4
-
-fVec2 :: [2]f32
-fVec3 :: [3]f32
-fVec4 :: [4]f32
-fColor :: fVec4
-Color :: fColor
-
-fRect :: osdl.fRect
-iRect :: osdl.iRect
-
-SECOND :: 1_000_000_000
-
-Window :: struct {
-	handle: ^sdl.Window,
-	
-	// TODO: refactor into rect or at least vectors.
-	x, y: int,
-	width, height: int,
-
-	should_close: bool,
-}
-
-Line :: struct {
-	texture: ^sdl.Texture,
-	text: [dynamic]u8,
-	height_in_lines: int,
-	index: int,
-}
-
-Font :: struct {
-	handle: ^ttf.Font,
-	size: int,
-
-	// TODO: Refactor height and width into char_dimensions vector.
-	height: int,
-	width: int,
-}
-
 window := Window {
-	width = window_width,
-	height = window_height,
+	dimensions = {window_width, window_height},
 }
+renderer: ^sdl.Renderer
 
-view: View
 font := Font{
 	size = font_size,
 }
-
-Margins :: struct {
-	up, down, left, right: int
-}
-
-renderer: ^sdl.Renderer
-
-App_Time :: struct {
-	ns: time.Duration,
-	ms: f64,
-	s: f64,
-}
-app_time: App_Time;
-
-number_of_lines: int
 lines: [dynamic]Line
+number_of_lines: int
 
-open_file :: proc(filename: string) -> os.Handle {
-	file, err := os.open(filename, os.O_RDONLY)
-	if (err != os.ERROR_NONE) {
-		fmt.fprintln(os.stderr, "ERROR: file not found.")
-		os.exit(1)
-	}
-	return file
-}
-
-// NOTE: Two step get size and then read might be a security risk.
-get_file_content :: proc(file: os.Handle) -> string {
-	file_stat, err := os.fstat(file)
-	if (err != os.ERROR_NONE) {
-		fmt.fprintln(os.stderr, "ERROR: couldn't stat file.")
-		os.exit(1)
-	}
-	content := make([]u8, file_stat.size)
-	content, err = os.read_entire_file_from_handle_or_err(file) // NOTE: allocates memory.
-	if (err != os.ERROR_NONE) do os.exit(1)
-
-	return string(content)
-}
-
-get_indeces_for_lines_in_view :: proc(lines: [dynamic]Line) -> (start_index, end_index: int) {
-	start_index = u.get_clamped_min(view.text_location.y, 0)
-	end_index = u.get_clamped(view.text_location.y + (window.height / font.height) - 1, 0, number_of_lines - 1)
-	return start_index, end_index
-}
+app_time: App_Time;
 
 main :: proc() {
 	///////////
@@ -127,7 +43,7 @@ main :: proc() {
 		// .MAXIMIZED,
 	}
 	// NOTE: window width and height could be stored in persistent data across restarts.
-	ok = osdl.CreateWindowAndRenderer("Elk", window.width, window.height, window_flags, &window.handle, &renderer); assert(ok)
+	ok = wsdl.CreateWindowAndRenderer("Elk", window.dimensions.x, window.dimensions.y, window_flags, &window.handle, &renderer); assert(ok)
 
 	ok = ttf.Init(); if !ok do panic("Failed to init SDL3_ttf\n")
 
@@ -135,8 +51,8 @@ main :: proc() {
 	font.handle = ttf.OpenFont("/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf", f32(font.size))
 	if (font.handle == nil) do error_and_exit()
 	defer ttf.CloseFont(font.handle)
-	font.height = int(ttf.GetFontLineSkip(font.handle))
-	ok = ottf.GetGlyphMetrics(font.handle, ' ', nil, nil, nil, nil, &font.width)
+	font.dimensions.y = int(ttf.GetFontLineSkip(font.handle))
+	ok = wttf.GetGlyphMetrics(font.handle, ' ', nil, nil, nil, nil, &font.dimensions.x)
 	if !ok {
 		error_and_exit()
 	}
@@ -152,13 +68,12 @@ main :: proc() {
 
 	// WARNING: This is done for every line whether it fits on screen or not.
 	for &line, i in lines {
-		// text_surface := ttf.RenderText_Blended_Wrapped(font.handle, strings.unsafe_string_to_cstring(string(line.text[:])), 0, colors.WHITE, i32(window.width - margins.left - margins.right))
 		text_surface := ttf.RenderText_Blended(font.handle, strings.unsafe_string_to_cstring(string(line.text[:])), 0, colors.WHITE)
 		if (text_surface == nil) {
 			continue
 		} else {
 			line.texture = sdl.CreateTextureFromSurface(renderer, text_surface)
-			line.height_in_lines = int(line.texture.h) / font.height
+			line.height_in_lines = int(line.texture.h) / font.dimensions.y
 			sdl.DestroySurface(text_surface)
 		}
 	}
@@ -174,7 +89,7 @@ main :: proc() {
 	last_second_time: u64
 	fps_texture: ^sdl.Texture
 	upkeep_view(&view, cursor)
-	cursor.rect.dimensions = {f32(font.width), f32(font.height)}
+	cursor.rect.dimensions = {f32(font.dimensions.x), f32(font.dimensions.y)}
 	for !window.should_close {
 		sdl.RenderClear(renderer)
 		run_events()
@@ -185,14 +100,14 @@ main :: proc() {
 		number_of_lines = len(lines)
 
 		upkeep_view(&view, cursor)
-		if first_iteration do fmt.println("view.dimensions_in_chars: ", view.dimensions_in_chars)
+		if first_iteration do fmt.println("view.dimensions_in_chars: ", view.cell_rect.dimensions)
 		// upkeep_cursor(&cursor, view)
 
 		set_line_indeces_and_number_of_lines(&lines) // NOTE: Could be done upon edits instead.
 
 		// Update window.
-		osdl.GetRenderOutputSize(renderer, &window.width, &window.height)
-		// osdl.SetWindowSize(window.handle, window.width, window.height) // WARNING: This is INCREDIBLY expensive.
+		wsdl.GetRenderOutputSize(renderer, &window.dimensions.x, &window.dimensions.y)
+		// wsdl.SetWindowSize(window.handle, window.width, window.height) // WARNING: This is INCREDIBLY expensive.
 
 		// Rendering.
 		sdl.SetRenderDrawBlendMode(renderer, sdl.BlendMode{})
@@ -203,8 +118,8 @@ main :: proc() {
 		index_first, index_last := get_indeces_for_lines_in_view(lines)
 
 		frame := sdl.FRect{
-			w = f32(window.width),
-			h = f32(window.height),
+			w = f32(window.dimensions.x),
+			h = f32(window.dimensions.y),
 		}
 		render_background(frame, index_first, index_last)
 		render_lines(frame, lines, index_first, index_last)
@@ -250,15 +165,10 @@ main :: proc() {
 	sdl.Quit()
 }
 
-draw_fps_counter :: proc(renderer: ^sdl.Renderer, fps_texture: ^sdl.Texture) {
-	src, dst: osdl.fRect
-
-	src.dimensions, _ = osdl.GetTextureSize(fps_texture)
-
-	dst.dimensions = src.dimensions
-	dst.position.x = f32(window.width) - src.dimensions.x
-
-	osdl.RenderTexture(renderer, fps_texture, &src, &dst)
+get_indeces_for_lines_in_view :: proc(lines: [dynamic]Line) -> (start_index, end_index: int) {
+	start_index = u.get_clamped_min(view.cell_rect.position.y, 0)
+	end_index = u.get_clamped(view.cell_rect.position.y + (window.dimensions.y / font.dimensions.y) - 1, 0, number_of_lines - 1)
+	return start_index, end_index
 }
 
 set_line_indeces_and_number_of_lines :: proc(lines: ^[dynamic]Line) {
@@ -268,78 +178,6 @@ set_line_indeces_and_number_of_lines :: proc(lines: ^[dynamic]Line) {
 	}
 	number_of_lines = i
 	// fmt.println("number_of_lines: ", number_of_lines)
-}
-
-calculate_app_time :: proc() -> App_Time {
-	app_time := App_Time {
-		ns = time.Duration(sdl.GetTicksNS()),
-		ms = f64(app_time.ns) / 1_000_000,
-		s = app_time.ms / 1_000,
-	}
-	return app_time
-}
-
-fill_screen :: proc(color: Color) {
-	sdl.SetRenderDrawColor(renderer, 0x1f, 0x23, 0x35, 0xff)
-	sdl.RenderClear(renderer)
-}
-
-draw_rectangle :: proc(position, dimensions: fVec2, color: Color) {
-	sdl.SetRenderDrawColorFloat(renderer, color.x, color.y, color.z, color.w)
-	rect := sdl.FRect{ position.x, position.y, dimensions.x, dimensions.y }
-	sdl.RenderFillRect(renderer, &rect)
-}
-
-error_and_exit :: proc(category := sdl.LogCategory.APPLICATION) {
-	sdl.LogError(category, sdl.GetError())
-	os.exit(1);
-}
-
-run_events :: proc() {
-	e: sdl.Event
-	for sdl.PollEvent(&e) {
-		#partial switch e.type {
-		case .QUIT:
-			window.should_close = true
-		case .KEY_DOWN:
-			keycode := sdl.GetKeyFromScancode(e.key.scancode, e.key.mod, false)
-			if keycode == 'H' {
-				view.text_location.x -= (window.width / font.width) / 2
-			} else if keycode == 'J' {
-				view.text_location.y += (window.height / font.height) / 2
-				// fmt.println(window.height, font.height, (window.height / font.height) / 2)
-			} else if keycode == 'K' {
-				view.text_location.y -= (window.height / font.height) / 2
-				// fmt.println(window.height, font.height, (window.height / font.height) / 2)
-			} else if keycode == 'L' {
-				view.text_location.x += (window.width / font.width) / 2
-			} else if e.key.scancode == .ESCAPE || e.key.scancode == .Q {
-				window.should_close = true
-			} else if e.key.scancode == .H && e.key.mod == sdl.KMOD_NONE {
-				move_cursor(&cursor, .LEFT, lines)
-			} else if e.key.scancode == .J && e.key.mod == sdl.KMOD_NONE {
-				move_cursor(&cursor, .DOWN, lines)
-			} else if e.key.scancode == .K && e.key.mod == sdl.KMOD_NONE {
-				move_cursor(&cursor, .UP, lines)
-			} else if e.key.scancode == .L && e.key.mod == sdl.KMOD_NONE {
-				move_cursor(&cursor, .RIGHT, lines)
-			} else if e.key.scancode == .H && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
-				move_view(&view, .LEFT)
-			} else if e.key.scancode == .J && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
-				move_view(&view, .DOWN)
-			} else if e.key.scancode == .K && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
-				move_view(&view, .UP)
-			} else if e.key.scancode == .L && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
-				move_view(&view, .RIGHT)
-			} else if e.key.scancode == .D {
-				debug_rendering = !debug_rendering
-			} else if (e.key.scancode == .F) && (e.key.mod & sdl.KMOD_SHIFT != sdl.KMOD_NONE) {
-				lock_framerate = !lock_framerate
-			} else if (e.key.scancode == .F && e.key.mod == sdl.KMOD_NONE) {
-				show_fps_counter = !show_fps_counter
-			}
-		}
-	}
 }
 
 // LAST LINE

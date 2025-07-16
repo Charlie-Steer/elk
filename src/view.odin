@@ -6,8 +6,9 @@ import u "charlie-utils"
 
 View :: struct {
 	// TODO: Refactor into iRect
-	text_location: iVec2,
-	dimensions_in_chars: iVec2,
+	// text_location: iVec2,
+	// dimensions_in_chars: iVec2,
+	cell_rect: iRect,
 
 	// TODO: Position + size vs rect is completely redundant wtf.
 	position: fVec2,
@@ -17,22 +18,24 @@ View :: struct {
 	number_of_lines_that_fit_on_screen: int,
 }
 
+view: View
+
 move_view :: proc(view: ^View, direction: Direction) {
 	switch direction {
 		case .LEFT:
-			view.text_location.x -= 1;
+			view.cell_rect.position.x -= 1;
 		case .DOWN:
-			view.text_location.y += 1;
+			view.cell_rect.position.y += 1;
 		case .UP:
-			view.text_location.y -= 1;
+			view.cell_rect.position.y -= 1;
 		case .RIGHT:
-			view.text_location.x += 1;
+			view.cell_rect.position.x += 1;
 	}
 
 	// Correction.
-	u.clamp(&view.text_location.y, -max_view_lines_above_text, number_of_lines - view.number_of_lines_that_fit_on_screen + max_view_lines_under_text)
+	u.clamp(&view.cell_rect.position.y, -max_view_lines_above_text, number_of_lines - view.number_of_lines_that_fit_on_screen + max_view_lines_under_text)
 	// TODO: Sophisticated right view clamp.
-	u.clamp_min(&view.text_location.x, -max_view_lines_left_of_text)
+	u.clamp_min(&view.cell_rect.position.x, -max_view_lines_left_of_text)
 
 	update_view_position(view)
 
@@ -45,25 +48,25 @@ make_view_follow_cursor :: proc(view: ^View, cursor: Cursor) {
 	// Follow cursor.
 	// NOTE: Note the symmetry between odd and even statements.
 	if cursor.view_location.x < 0 {
-		view.text_location.x = cursor.text_location.x
-	} else if cursor.view_location.x >= view.dimensions_in_chars.x {
-		view.text_location.x = cursor.text_location.x - view.dimensions_in_chars.x + 1
+		view.cell_rect.position.x = cursor.text_location.x
+	} else if cursor.view_location.x >= view.cell_rect.dimensions.x {
+		view.cell_rect.position.x = cursor.text_location.x - view.cell_rect.dimensions.x + 1
 	} else if cursor.view_location.y < 0 {
-		view.text_location.y = cursor.text_location.y
-	} else if cursor.view_location.y >= view.dimensions_in_chars.y {
-		view.text_location.y = cursor.text_location.y - view.dimensions_in_chars.y + 1
+		view.cell_rect.position.y = cursor.text_location.y
+	} else if cursor.view_location.y >= view.cell_rect.dimensions.y {
+		view.cell_rect.position.y = cursor.text_location.y - view.cell_rect.dimensions.y + 1
 	}
 
 	update_view_position(view)
 }
 
 update_view_position :: proc(view: ^View) {
-	// view.position = { f32(view.text_location.x) * f32(font.width), f32(view.text_location.y) * f32(font.height) }
-	f_view_text_location := fVec2{ f32(view.text_location.x), f32(view.text_location.y) }
-	view.position = f_view_text_location * {f32(font.width), f32(font.height)}
+	// view.position = { f32(view.cell_rect.position.x) * f32(font.dimensions.x), f32(view.cell_rect.position.y) * f32(font.dimensions.y) }
+	view.position = u.fVec(view.cell_rect.position) * u.fVec(font.dimensions)
 }
 
 upkeep_view :: proc(view: ^View, cursor: Cursor) {
-	view.number_of_lines_that_fit_on_screen = window.height / font.height // NOTE: Constant calculation.
-	view.dimensions_in_chars = {window.width / font.width, window.height / font.height} // NOTE: Constant calculation.
+	view.number_of_lines_that_fit_on_screen = window.dimensions.y / font.dimensions.y // NOTE: Constant calculation.
+	// view.cell_rect.dimensions = {window.dimensions.x / font.dimensions.x, window.dimensions.y / font.dimensions.y} // NOTE: Constant calculation.
+	view.cell_rect.dimensions = window.dimensions / font.dimensions // NOTE: Constant calculation.
 }
