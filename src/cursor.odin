@@ -4,10 +4,18 @@ import sdl "vendor:sdl3"
 import osdl "sdl3_wrapper"
 import u "charlie-utils"
 import "core:fmt"
+import "core:unicode/utf8"
 
+// I need to count byte position
+// and grapheme and/or cell position.
 Cursor :: struct {
-	text_location: iVec2,
-	view_location: iVec2,
+	byte_location: int,
+	grapheme_location: int,
+	// grid_location: iVec2, // column and line location.
+	column: int,
+	line: int,
+
+	view_location: iVec2, // cell location within camera-space.
 
 	rect: fRect,
 
@@ -24,41 +32,43 @@ Direction :: enum {
 }
 
 
-clamp_x :: proc() {
-	u.clamp(&cursor.text_location.x, 0, len(lines[cursor.text_location.y].text) - 1)
+clamp_column :: proc() {
+	u.clamp(&cursor.column, 0, len(lines[cursor.line].text) - 1)
 }
 
 // NOTE: Clamp cursor on movement instead of (just) posterior correction?
 move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line) {
 	switch direction {
 		case .LEFT:
-			cursor.text_location.x -= 1
+			// utf8.grapheme_count(lines[cursor.line].text[:cursor.grapheme_location])
+			cursor.column -= 1
 		case .DOWN:
-			cursor.text_location.y += 1
+			cursor.line += 1
 		case .UP:
-			cursor.text_location.y -= 1
+			cursor.line -= 1
 		case .RIGHT:
-			cursor.text_location.x += 1
+			cursor.column += 1
 	}
 
 	if (direction == .LEFT || direction == .RIGHT) {
-		clamp_x()
-		cursor.column_in_memory = cursor.text_location.x
+		clamp_column()
+		cursor.column_in_memory = cursor.column
 	} else if (direction == .DOWN || direction == .UP) {
-		cursor.text_location.x = cursor.column_in_memory
-		u.clamp(&cursor.text_location.y, 0, number_of_lines)
-		clamp_x()
+		cursor.column = cursor.column_in_memory
+		u.clamp(&cursor.line, 0, number_of_lines)
+		clamp_column()
 	}
 
 	// NOTE: update_cursor_in_view() unnecessary if make_view_follow_cursor() based on absolute text location
 	update_cursor_in_view(cursor)
 	make_view_follow_cursor(&view, cursor^)
 	update_cursor_in_view(cursor)
-	fmt.println("MOVED CURSOR", view.cell_rect.position, cursor.text_location)
+	// fmt.println("MOVED CURSOR", view.cell_rect.position, cursor.grid_location)
 }
 
 update_cursor_in_view :: proc(cursor: ^Cursor) {
-	cursor.view_location = cursor.text_location - view.cell_rect.position
+	// cursor.view_location = cursor.grid_location - view.cell_rect.position
+	cursor.view_location = {cursor.column, cursor.line} - view.cell_rect.position
 
 	cursor.rect = fRect {
 		position = u.fVec(cursor.view_location) * u.fVec(font.dimensions),
@@ -68,25 +78,25 @@ update_cursor_in_view :: proc(cursor: ^Cursor) {
 }
 
 make_cursor_follow_view :: proc(cursor: ^Cursor, view: View) {
-	fmt.println("Cursor:", cursor.text_location)
-	if cursor.text_location.x < view.cell_rect.position.x {
-		cursor.text_location.x = view.cell_rect.position.x
-		cursor.column_in_memory = cursor.text_location.x
-	} else if cursor.text_location.x >= view.cell_rect.position.x + view.cell_rect.dimensions.x {
-		cursor.text_location.x = view.cell_rect.position.x + view.cell_rect.dimensions.x - 1
-		cursor.column_in_memory = cursor.text_location.x
+	fmt.println("Cursor:", iVec2{cursor.line, cursor.column})
+	if cursor.column < view.cell_rect.position.x {
+		cursor.column = view.cell_rect.position.x
+		cursor.column_in_memory = cursor.column
+	} else if cursor.column >= view.cell_rect.position.x + view.cell_rect.dimensions.x {
+		cursor.column = view.cell_rect.position.x + view.cell_rect.dimensions.x - 1
+		cursor.column_in_memory = cursor.column
 	}
 
-	if cursor.text_location.y < view.cell_rect.position.y {
-		fmt.println("cursor was above view.", view.cell_rect.position, cursor.text_location)
-		cursor.text_location.y = view.cell_rect.position.y
-		cursor.text_location.x = cursor.column_in_memory
-		clamp_x()
-	} else if cursor.text_location.y >= view.cell_rect.position.y + view.cell_rect.dimensions.y {
-		fmt.println("cursor was under view.", view.cell_rect.position, cursor.text_location)
-		cursor.text_location.y = view.cell_rect.position.y + view.cell_rect.dimensions.y - 1
-		cursor.text_location.x = cursor.column_in_memory
-		clamp_x()
+	if cursor.line < view.cell_rect.position.y {
+		fmt.println("cursor was above view.", view.cell_rect.position, iVec2{cursor.line, cursor.column})
+		cursor.line = view.cell_rect.position.y
+		cursor.column = cursor.column_in_memory
+		clamp_column()
+	} else if cursor.line >= view.cell_rect.position.y + view.cell_rect.dimensions.y {
+		fmt.println("cursor was under view.", view.cell_rect.position, iVec2{cursor.line, cursor.column})
+		cursor.line = view.cell_rect.position.y + view.cell_rect.dimensions.y - 1
+		cursor.column = cursor.column_in_memory
+		clamp_column()
 	}
 
 	update_cursor_in_view(cursor)
@@ -110,5 +120,13 @@ render_cursor :: proc(cursor: ^Cursor, index_first_line_on_screen: int) {
 
 	osdl.SetRenderDrawColorFloat(renderer, {1, 1, 1, 0.65})
 	sdl.SetRenderDrawBlendMode(renderer, sdl.BlendMode{.BLEND})
-	osdl.RenderFillRect(renderer, cursor.rect)
+	if (mode == .NORMAL) {
+		osdl.RenderFillRect(renderer, cursor.rect)
+	} else if (mode == .INSERT) {
+		insert_rect := cursor.rect
+		insert_rect.dimensions.x = 2;
+		osdl.RenderFillRect(renderer, insert_rect)
+	} else {
+		panic("Inexistent mode.");
+	}
 }

@@ -1,4 +1,5 @@
 package main
+// ❤️❤️❤️❤️
 
 import "colors"
 import u "charlie-utils"
@@ -7,14 +8,22 @@ import sdl "vendor:sdl3"
 import ttf "vendor:sdl3/ttf"
 import wsdl "sdl3_wrapper"
 import wttf "sdl3_ttf_wrapper"
+import csl "charlie_software_library"
 
 import "core:c"
+import "core:c/libc"
 import "core:os"
 import "core:fmt"
 import "core:strings"
 import "core:math"
 import "core:time"
 import "core:strconv"
+
+Mode :: enum {
+	NORMAL,
+	INSERT,
+}
+mode := Mode.NORMAL
 
 window := Window {
 	dimensions = {window_width, window_height},
@@ -24,6 +33,8 @@ renderer: ^sdl.Renderer
 font := Font{
 	size = font_size,
 }
+emoji_font := font
+
 lines: [dynamic]Line
 number_of_lines: int
 
@@ -37,46 +48,44 @@ main :: proc() {
 	ok := sdl.SetAppMetadata("Elk", "0.1", "dev.charlie.elk"); assert(ok)
 	ok = sdl.Init(sdl.InitFlags{.VIDEO}); assert(ok)
 	window_flags := sdl.WindowFlags{
-		.BORDERLESS,
+		// .BORDERLESS,
 		// .RESIZABLE,
 		// .FULLSCREEN,
 		// .MAXIMIZED,
 	}
+	if maximized do window_flags += {.FULLSCREEN}
 	// NOTE: window width and height could be stored in persistent data across restarts.
 	ok = wsdl.CreateWindowAndRenderer("Elk", window.dimensions.x, window.dimensions.y, window_flags, &window.handle, &renderer); assert(ok)
 
-	ok = ttf.Init(); if !ok do panic("Failed to init SDL3_ttf\n")
+	csl_context, err := new(csl.csl_context)
+	if err != .None {
+		panic("csl allocator error")
+	}
+	defer free(csl_context)
+	context.user_ptr = csl_context
+	csl_context.renderer = renderer
+
+	if ok := ttf.Init(); !ok do panic("Failed to init SDL3_ttf\n")
 
 	// FONT
-	font.handle = ttf.OpenFont("/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf", f32(font.size))
+	// font.handle = ttf.OpenFont("/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf", f32(font.size))
+	font.handle = ttf.OpenFont("/home/charlie/projects/elk/JB-Nerd/JetBrainsMonoNerdFont-Regular.ttf", f32(font_size))
+	emoji_font: Font
+	emoji_font.handle = ttf.OpenFont("/home/charlie/projects/elk/NotoColorEmoji.ttf", f32(font_size))
+
 	if (font.handle == nil) do error_and_exit()
 	defer ttf.CloseFont(font.handle)
-	font.dimensions.y = int(ttf.GetFontLineSkip(font.handle))
-	ok = wttf.GetGlyphMetrics(font.handle, ' ', nil, nil, nil, nil, &font.dimensions.x)
-	if !ok {
-		error_and_exit()
-	}
+	font.dimensions = csl.get_monospaced_font_dimensions(font.handle)
 
 	// NOTE: Do I want to have the file open for the duration of the program or just on open and on save?
-	filename := "main.odin"
+	filename := "/home/charlie/projects/elk/src/main.odin"
 	file := open_file(filename)
 	defer os.close(file)
 
+	// Prepare textfile:
 	file_content := get_file_content(file)
 	text_string := expand_tabs(file_content, 4)
 	lines = split_string_in_line_structs(text_string)
-
-	// WARNING: This is done for every line whether it fits on screen or not.
-	for &line, i in lines {
-		text_surface := ttf.RenderText_Blended(font.handle, strings.unsafe_string_to_cstring(string(line.text[:])), 0, colors.WHITE)
-		if (text_surface == nil) {
-			continue
-		} else {
-			line.texture = sdl.CreateTextureFromSurface(renderer, text_surface)
-			line.height_in_lines = int(line.texture.h) / font.dimensions.y
-			sdl.DestroySurface(text_surface)
-		}
-	}
 
 	first_iteration := true // NOTE: For testing purposes.
 
@@ -91,10 +100,10 @@ main :: proc() {
 	upkeep_view(&view, cursor)
 	cursor.rect.dimensions = {f32(font.dimensions.x), f32(font.dimensions.y)}
 	for !window.should_close {
-		sdl.RenderClear(renderer)
+		frame_start_time := sdl.GetTicksNS()
 		run_events()
 
-		frame_start_time := sdl.GetTicksNS()
+		sdl.RenderClear(renderer)
 
 		// Update state.
 		number_of_lines = len(lines)
@@ -116,6 +125,21 @@ main :: proc() {
 
 		// NOTE: index_first and index_last should probably be a part of the view struct.
 		index_first, index_last := get_indeces_for_lines_in_view(lines)
+
+		for &line in lines {
+			if line.texture != nil {
+				sdl.DestroyTexture(line.texture)
+				line.texture = nil
+			}
+		}
+		// TODO: Cache until change or maybe move.
+		for &line in lines[index_first: index_last] {
+			// if line.texture != nil {
+			// 	sdl.DestroyTexture(line.texture)
+			// 	line.texture = nil
+			// }
+			line.texture = csl.create_text_texture(string(line.text[:]), font.handle, font.size)
+		}
 
 		frame := sdl.FRect{
 			w = f32(window.dimensions.x),

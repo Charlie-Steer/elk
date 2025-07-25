@@ -19,17 +19,18 @@ expand_tabs :: proc(str: string, tab_width: int) -> string {
 			strings.write_rune(&builder, c)
 		}
 	}
-	strings.write_rune(&builder, 0x00)
+	// strings.write_rune(&builder, 0x00)
 	return (strings.to_string(builder))
 }
 
 @(require_results)
 copy_substring :: proc(slice: string) -> [dynamic]u8 {
-	substring := make_dynamic_array_len_cap([dynamic]u8, 0, len(slice) + 1)
+	substring := make_dynamic_array_len_cap([dynamic]u8, 0, len(slice))
 	for c, i in transmute([]u8)slice {
 		append(&substring, slice[i])
 	}
-	append(&substring, 0x00)
+	append(&substring, ' ')
+	// append(&substring, 0x00)
 	return substring
 }
 

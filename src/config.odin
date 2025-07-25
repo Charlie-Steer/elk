@@ -3,7 +3,7 @@ package main
 window_width := 640
 window_height := 480
 
-font_size := 15
+font_size : f32 = 15
 
 margins := Margins{ 0, 0, 9, 0 }
 // margins := Margins{ 0, 0, 0, 0 }
@@ -16,3 +16,5 @@ debug_rendering := false
 show_fps_counter := true
 lock_framerate := false
 target_fps := 60
+
+maximized := true

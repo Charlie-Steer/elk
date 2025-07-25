@@ -1,12 +1,12 @@
 # On sight:
 
+- Editing.
+
 - Clean-up types.
 - Refactor time stuff into procs.
 - Move procs in main to other files.
 
-- Make half-page jumps work.
-
-- Editing.
+- BUG: Make half-page jumps work.
 
 - Frame drops printing.
 
@@ -25,30 +25,44 @@
 - Double buffering
 - Single draw call?
 
+- Create UI library?
+
+- Rethink Input config system.
+
 
 # Wishlist:
-## Important
+- Emoji support / font fallback / font-atlas-based rendering.
 - Syntax Highlighting (Treesitter?).
+
 - LSP integration.
     - Go to definition.
     - Suggestions and autocomplete.
     - Renaming.
-- Integrated terminal.
 
-- File and function pins.
+- Search and replace.
+
+- File, function and section pins and traversal.
+
 - Different cursor-view model (view follows cursor but cursor doesn't follow view.)
+- Togglelable character/word/WORD/line/view cursor?
 
-- Improved comments.
-- Line-coloring?
+- Better comments.
 - Info bar:
     - filename.
     - Error number.
+
 - Multiple panels.
-- Search and replace.
+
+- Performance profiler.
+
+- On command Line-coloring?
+
 
 ## Very Much Maybe.
 - Function graph view.
 - Sessionizer
+
+- Integrated terminal.
 
 - Settings menu.
 - Variable-width fonts and wrapping.

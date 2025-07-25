@@ -26,6 +26,6 @@ draw_fps_counter :: proc(renderer: ^sdl.Renderer, fps_texture: ^sdl.Texture) {
 }
 
 error_and_exit :: proc(category := sdl.LogCategory.APPLICATION) {
-	sdl.LogError(category, sdl.GetError())
+	sdl.LogError(i32(category), sdl.GetError())
 	os.exit(1);
 }

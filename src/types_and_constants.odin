@@ -36,7 +36,7 @@ Window :: struct {
 
 Font :: struct {
 	handle: ^ttf.Font,
-	size: int,
+	size: f32,
 
 	dimensions: iVec2,
 }

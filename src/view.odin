@@ -48,13 +48,13 @@ make_view_follow_cursor :: proc(view: ^View, cursor: Cursor) {
 	// Follow cursor.
 	// NOTE: Note the symmetry between odd and even statements.
 	if cursor.view_location.x < 0 {
-		view.cell_rect.position.x = cursor.text_location.x
+		view.cell_rect.position.x = cursor.column
 	} else if cursor.view_location.x >= view.cell_rect.dimensions.x {
-		view.cell_rect.position.x = cursor.text_location.x - view.cell_rect.dimensions.x + 1
+		view.cell_rect.position.x = cursor.column - view.cell_rect.dimensions.x + 1
 	} else if cursor.view_location.y < 0 {
-		view.cell_rect.position.y = cursor.text_location.y
+		view.cell_rect.position.y = cursor.line
 	} else if cursor.view_location.y >= view.cell_rect.dimensions.y {
-		view.cell_rect.position.y = cursor.text_location.y - view.cell_rect.dimensions.y + 1
+		view.cell_rect.position.y = cursor.line - view.cell_rect.dimensions.y + 1
 	}
 
 	update_view_position(view)
