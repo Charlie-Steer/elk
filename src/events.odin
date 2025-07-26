@@ -4,6 +4,12 @@ import sdl "vendor:sdl3"
 import "core:fmt"
 import "core:unicode/utf8"
 
+debug_event :: proc(e: sdl.Event) {
+	fmt.println(e.type)
+	fmt.println(e.key.scancode)
+	fmt.println(e.key.mod)
+}
+
 run_events :: proc() {
 	e: sdl.Event
 	for sdl.PollEvent(&e) {
@@ -11,6 +17,7 @@ run_events :: proc() {
 		case .QUIT:
 			window.should_close = true
 		case .KEY_DOWN:
+			debug_event(e)
 			keycode := sdl.GetKeyFromScancode(e.key.scancode, e.key.mod, false)
 			if mode == .NORMAL {
 				if e.key.scancode == .Q {
@@ -47,6 +54,9 @@ run_events :: proc() {
 					lock_framerate = !lock_framerate
 				} else if (e.key.scancode == .F && e.key.mod == sdl.KMOD_NONE) {
 					show_fps_counter = !show_fps_counter
+				} else if (e.key.scancode == .S && e.key.mod == sdl.KMOD_LCTRL) {
+					fmt.println("Saving...")
+					combine_lines_into_single_buffer_and_save_file(lines)
 				} else if (e.key.scancode == .I || e.key.scancode == .A) {
 					sdl.StartTextInput(window.handle);
 					mode = .INSERT

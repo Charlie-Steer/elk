@@ -67,3 +67,26 @@ split_string_in_line_structs :: proc(text: string) -> [dynamic]Line {
 	}
 	return lines
 }
+
+// REASSEMBLY PROCESS
+
+combine_lines_into_single_buffer_and_save_file :: proc(lines: [dynamic]Line) {
+	buffer := make_dynamic_array_len_cap([dynamic]u8, 0, 4096) // NOTE: Allocation.
+	for line in lines {
+		append_string(&buffer, string(line.text[:]))
+		append_elem(&buffer, '\n')
+	}
+	fmt.println(string(buffer[:]))
+	file, err_open := os.open("/home/charlie/projects/elk/edit_playground/edited.odin", os.O_CREATE | os.O_TRUNC | os.O_WRONLY, 0o644)
+	if err_open != .NONE {
+		fmt.eprintln("ERROR: COULDN'T OPEN FILE")
+	}
+	defer os.close(file)
+
+	bytes_written, err_write := os.write(file, buffer[:])
+	if err_write != .NONE {
+		fmt.eprintln("ERROR: COULDN'T WRITE CONTENTS TO FILE")
+	} else {
+		fmt.printfln("Wrote %v bytes.", bytes_written)
+	}
+}

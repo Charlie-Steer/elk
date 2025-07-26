@@ -1,14 +1,20 @@
+# Scratchpad
+Saving edits:
+- Replacing spaces with tabs depending on configuration.
+- Assembling lines into single buffer with newlines.
+- Replacing file's content with buffer's content.
+
 # On sight:
 
-- Saving changes to file.
+- Deleting characters in write mode.
+- BUG: insert on first character of line works incorrectly.
+
 - Refactor Rects into vectors (probably).
 
 - Refactor time stuff into procs.
 - Move procs in main to other files.
 
 - BUG: Make half-page jumps work.
-
-- Frame drops printing.
 
 
 # Non-pressing:
@@ -28,6 +34,8 @@
 - Create UI library?
 
 - Rethink Input config system.
+
+- Frame drops printing.
 
 
 # Wishlist:
