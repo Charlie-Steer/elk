@@ -17,12 +17,15 @@ Cursor :: struct {
 
 	view_location: iVec2, // cell location within camera-space.
 
+	cell_width: int,
 	rect: fRect,
 
 	column_in_memory: int,
 }
 
-cursor: Cursor
+cursor := Cursor {
+	cell_width = 1, // HACK: If not set to a value, cursor won't render until cursor_move().
+}
 
 Direction :: enum {
 	LEFT,
@@ -31,33 +34,107 @@ Direction :: enum {
 	RIGHT,
 }
 
+Move_Unit :: enum {
+	CELLS,
+	BYTES,
+}
 
-clamp_column :: proc() {
-	u.clamp(&cursor.column, 0, len(lines[cursor.line].text) - 1)
+
+clamp_column :: proc(line_width_in_cells: int) {
+	u.clamp(&cursor.column, 0, line_width_in_cells - 1)
+}
+
+// TODO: Rename into something sensible.
+// NOTE: Could be called only when going into insert mode and on insert writes.
+loop_through_graphemes  :: proc(line_text: string, column: int, graphemes: [dynamic]utf8.Grapheme, direction: Direction) {
+	if (column == 0) {
+		if len(graphemes) == 0 {
+			cursor.cell_width = graphemes[0].width
+		} else {
+			cursor.cell_width = 1
+		}
+		return
+	}
+	columns_traversed: int
+	grapheme_index: int // NOTE: for debugging.
+	grapheme_width_in_columns: int
+	for i := 0; i < len(graphemes); i += 1 {
+		grapheme_index = i
+		grapheme_width_in_columns = graphemes[i].width
+		fmt.println("GRAPHEME WIDTH: ", grapheme_width_in_columns)
+		columns_traversed += grapheme_width_in_columns
+		fmt.println(column)
+		fmt.println(columns_traversed, "\n")
+		if (columns_traversed >= column) {
+			if columns_traversed > column {
+				fmt.println("columns_traversed > column")
+				if direction == .LEFT {
+					cursor.column -= (grapheme_width_in_columns - 1)
+					cursor.byte_location = graphemes[i].byte_index
+					cursor.cell_width = graphemes[i].width
+				} else if direction == .RIGHT {
+					cursor.column += (grapheme_width_in_columns - 1)
+					cursor.byte_location = graphemes[i + 1].byte_index
+					cursor.cell_width = graphemes[i + 1].width
+				}
+			} else {
+				fmt.println("columns_traversed == column")
+				cursor.byte_location = graphemes[i + 1].byte_index
+				cursor.cell_width = graphemes[i + 1].width
+			}
+			return
+		}
+	}
+
+	fmt.println("grapheme_count < column_index")
 }
 
 // NOTE: Clamp cursor on movement instead of (just) posterior correction?
-move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line) {
-	switch direction {
-		case .LEFT:
-			// utf8.grapheme_count(lines[cursor.line].text[:cursor.grapheme_location])
-			cursor.column -= 1
+move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line, grapheme_amount: int) {
+	#partial switch direction {
 		case .DOWN:
 			cursor.line += 1
 		case .UP:
 			cursor.line -= 1
+		case .LEFT:
+			cursor.column -= 1
 		case .RIGHT:
 			cursor.column += 1
 	}
+	u.clamp(&cursor.line, 0, number_of_lines)
+
+	line := lines[cursor.line]
+	line_text := string(line.text[:])
+	graphemes, grapheme_count, rune_count, line_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
 
 	if (direction == .LEFT || direction == .RIGHT) {
-		clamp_column()
+		clamp_column(line_width_in_cells)
 		cursor.column_in_memory = cursor.column
 	} else if (direction == .DOWN || direction == .UP) {
 		cursor.column = cursor.column_in_memory
-		u.clamp(&cursor.line, 0, number_of_lines)
-		clamp_column()
+		clamp_column(line_width_in_cells)
 	}
+
+	grapheme_width_in_columns: int
+	// cursor.byte_location, grapheme_width_in_columns = loop_through_graphemes(line_text, cursor.column, graphemes, direction)
+	loop_through_graphemes(line_text, cursor.column, graphemes, direction)
+
+
+	// TODO: MAKE SO IF CURSOR DOESN'T LAND ON FIRST COL OF GRAPHEME, IT CORRECTS TO THE FIRST.
+	// TODO: MAKE SO WITH OF CURSOR IS WIDTH OF GRAPHEME
+
+	// if (grapheme_width_in_columns > 1) {
+	// 	switch direction {
+	// 		case .LEFT:
+	// 			cursor.column -= grapheme_width_in_columns - 1
+	// 		case .DOWN:
+	// 			cursor.line += grapheme_width_in_columns - 1
+	// 		case .UP:
+	// 			cursor.line -= grapheme_width_in_columns - 1
+	// 		case .RIGHT:
+	// 			cursor.column += grapheme_width_in_columns - 1
+	// 	}
+	// }
 
 	// NOTE: update_cursor_in_view() unnecessary if make_view_follow_cursor() based on absolute text location
 	update_cursor_in_view(cursor)
@@ -65,6 +142,71 @@ move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line)
 	update_cursor_in_view(cursor)
 	// fmt.println("MOVED CURSOR", view.cell_rect.position, cursor.grid_location)
 }
+
+
+// // NOTE: Clamp cursor on movement instead of (just) posterior correction?
+// move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line, grapheme_amount: int) {
+// 	switch direction {
+// 		case .LEFT:
+// 			cursor.column -= 1
+// 		case .DOWN:
+// 			cursor.line += 1
+// 		case .UP:
+// 			cursor.line -= 1
+// 		case .RIGHT:
+// 			cursor.column += 1
+// 	}
+// 	line := lines[cursor.line]
+// 	line_text := string(line.text[:])
+// 	graphemes, grapheme_count, rune_count, line_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
+//
+// 	if (direction == .LEFT || direction == .RIGHT) {
+// 		clamp_column(line_width_in_cells)
+// 		cursor.column_in_memory = cursor.column
+// 	} else if (direction == .DOWN || direction == .UP) {
+// 		u.clamp(&cursor.line, 0, number_of_lines)
+//
+// 		cursor.column = cursor.column_in_memory
+// 		clamp_column(line_width_in_cells)
+// 	}
+//
+// 	line = lines[cursor.line]
+// 	line_text = string(line.text[:])
+// 	// graphemes, grapheme_count, rune_count, string_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
+// 	grapheme_width_in_columns: int
+// 	cursor.byte_location, grapheme_width_in_columns = get_byte_index_and_column_width_of_grapheme_in_column(line_text, cursor.column, graphemes)
+//
+// 	// if (grapheme_width_in_columns > 1) {
+// 	// 	switch direction {
+// 	// 		case .LEFT:
+// 	// 			cursor.column -= grapheme_width_in_columns - 1
+// 	// 		case .DOWN:
+// 	// 			cursor.line += grapheme_width_in_columns - 1
+// 	// 		case .UP:
+// 	// 			cursor.line -= grapheme_width_in_columns - 1
+// 	// 		case .RIGHT:
+// 	// 			cursor.column += grapheme_width_in_columns - 1
+// 	// 	}
+// 	// }
+// 	if (grapheme_width_in_columns > 1) {
+// 		switch direction {
+// 			case .LEFT:
+// 				cursor.column -= grapheme_width_in_columns - 1
+// 			case .DOWN:
+// 				cursor.line += grapheme_width_in_columns - 1
+// 			case .UP:
+// 				cursor.line -= grapheme_width_in_columns - 1
+// 			case .RIGHT:
+// 				cursor.column += grapheme_width_in_columns - 1
+// 		}
+// 	}
+//
+// 	// NOTE: update_cursor_in_view() unnecessary if make_view_follow_cursor() based on absolute text location
+// 	update_cursor_in_view(cursor)
+// 	make_view_follow_cursor(&view, cursor^)
+// 	update_cursor_in_view(cursor)
+// 	// fmt.println("MOVED CURSOR", view.cell_rect.position, cursor.grid_location)
+// }
 
 update_cursor_in_view :: proc(cursor: ^Cursor) {
 	// cursor.view_location = cursor.grid_location - view.cell_rect.position
@@ -87,16 +229,20 @@ make_cursor_follow_view :: proc(cursor: ^Cursor, view: View) {
 		cursor.column_in_memory = cursor.column
 	}
 
+	line := lines[cursor.line]
+	line_text := string(line.text[:])
+	_, _, _, line_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
+
 	if cursor.line < view.cell_rect.position.y {
 		fmt.println("cursor was above view.", view.cell_rect.position, iVec2{cursor.line, cursor.column})
 		cursor.line = view.cell_rect.position.y
 		cursor.column = cursor.column_in_memory
-		clamp_column()
+		clamp_column(line_width_in_cells)
 	} else if cursor.line >= view.cell_rect.position.y + view.cell_rect.dimensions.y {
 		fmt.println("cursor was under view.", view.cell_rect.position, iVec2{cursor.line, cursor.column})
 		cursor.line = view.cell_rect.position.y + view.cell_rect.dimensions.y - 1
 		cursor.column = cursor.column_in_memory
-		clamp_column()
+		clamp_column(line_width_in_cells)
 	}
 
 	update_cursor_in_view(cursor)
@@ -121,7 +267,9 @@ render_cursor :: proc(cursor: ^Cursor, index_first_line_on_screen: int) {
 	osdl.SetRenderDrawColorFloat(renderer, {1, 1, 1, 0.65})
 	sdl.SetRenderDrawBlendMode(renderer, sdl.BlendMode{.BLEND})
 	if (mode == .NORMAL) {
-		osdl.RenderFillRect(renderer, cursor.rect)
+		normal_rect := cursor.rect
+		normal_rect.dimensions.x *= f32(cursor.cell_width)
+		osdl.RenderFillRect(renderer, normal_rect)
 	} else if (mode == .INSERT) {
 		insert_rect := cursor.rect
 		insert_rect.dimensions.x = 2;

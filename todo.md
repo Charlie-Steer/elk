@@ -1,8 +1,8 @@
 # On sight:
 
-- Editing.
+- Saving changes to file.
+- Refactor Rects into vectors (probably).
 
-- Clean-up types.
 - Refactor time stuff into procs.
 - Move procs in main to other files.
 

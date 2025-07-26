@@ -26,13 +26,13 @@ run_events :: proc() {
 				} else if keycode == 'L' {
 					view.cell_rect.position.x += (window.dimensions.x / font.dimensions.x) / 2
 				} else if e.key.scancode == .H && e.key.mod == sdl.KMOD_NONE {
-					move_cursor(&cursor, .LEFT, lines)
+					move_cursor(&cursor, .LEFT, lines, 1)
 				} else if e.key.scancode == .J && e.key.mod == sdl.KMOD_NONE {
-					move_cursor(&cursor, .DOWN, lines)
+					move_cursor(&cursor, .DOWN, lines, 1)
 				} else if e.key.scancode == .K && e.key.mod == sdl.KMOD_NONE {
-					move_cursor(&cursor, .UP, lines)
+					move_cursor(&cursor, .UP, lines, 1)
 				} else if e.key.scancode == .L && e.key.mod == sdl.KMOD_NONE {
-					move_cursor(&cursor, .RIGHT, lines)
+					move_cursor(&cursor, .RIGHT, lines, 1)
 				} else if e.key.scancode == .H && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
 					move_view(&view, .LEFT)
 				} else if e.key.scancode == .J && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
@@ -65,15 +65,15 @@ run_events :: proc() {
 					fmt.println(rune_bytes)
 					assert(n_bytes > 0 && n_bytes <= 4)
 					if n_bytes == 1 {
-						inject_at_elem(&lines[cursor.line].text, cursor.line, rune_bytes[0])
+						inject_at_elem(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0])
 					} else if n_bytes == 2 {
-						inject_at_elems(&lines[cursor.line].text, cursor.line, rune_bytes[0], rune_bytes[1])
+						inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1])
 					} else if n_bytes == 3 {
-						inject_at_elems(&lines[cursor.line].text, cursor.line, rune_bytes[0], rune_bytes[1], rune_bytes[2])
+						inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1], rune_bytes[2])
 					} else {
-						inject_at_elems(&lines[cursor.line].text, cursor.line, rune_bytes[0], rune_bytes[1], rune_bytes[2], rune_bytes[3])
+						inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1], rune_bytes[2], rune_bytes[3])
 					}
-					move_cursor(&cursor, .RIGHT, lines)
+					move_cursor(&cursor, .RIGHT, lines, 1)
 					fmt.printfln("%v", lines[cursor.line].text)
 					fmt.printfln("%s", lines[cursor.line].text)
 					// fmt.printfln("correct: %v", transmute([]u8)string("día"))
