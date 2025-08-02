@@ -41,14 +41,18 @@ Move_Unit :: enum {
 
 
 clamp_cursor_column :: proc(cursor: ^Cursor, line_width_in_cells: int) {
-	u.clamp(&cursor.column, 0, line_width_in_cells - 1)
+	// u.clamp(&cursor.column, 0, line_width_in_cells - 1)
+	fmt.println("BEFORE: ", cursor.column)
+	fmt.println("len_columns: ", lines[cursor.line].len_columns)
+	u.clamp(&cursor.column, 0, u.get_clamped_min(line_width_in_cells - 1, 0))
+	fmt.println("AFTER: ", cursor.column)
 }
 
 // NOTE: This and delete_grapheme are awfully close in implementation.
 safe_move_to_column  :: proc(line_text: string, column: int, graphemes: [dynamic]utf8.Grapheme, direction: Direction) {
 	if (column == 0) {
 		cursor.byte_location = 0;
-		if len(graphemes) == 0 {
+		if len(graphemes) != 0 {
 			cursor.cell_width = graphemes[0].width
 		} else {
 			cursor.cell_width = 1
@@ -56,15 +60,16 @@ safe_move_to_column  :: proc(line_text: string, column: int, graphemes: [dynamic
 		return
 	}
 	columns_traversed: int
-	grapheme_index: int // NOTE: for debugging.
 	grapheme_width_in_columns: int
 	for i := 0; i < len(graphemes); i += 1 {
-		grapheme_index = i
 		grapheme_width_in_columns = graphemes[i].width
-		// fmt.println("GRAPHEME WIDTH: ", grapheme_width_in_columns)
 		columns_traversed += grapheme_width_in_columns
 		// fmt.println(column)
 		// fmt.println(columns_traversed, "\n")
+					fmt.println("BUG: ")
+					fmt.println("line_len_in_graphemes: ", len(graphemes))
+					fmt.println("Trying to index grapheme number: ", i + 1)
+					fmt.println("line_len_in_bytes: ", len(line_text))
 		if (columns_traversed >= column) {
 			if columns_traversed > column {
 				fmt.println("columns_traversed > column")
@@ -74,8 +79,10 @@ safe_move_to_column  :: proc(line_text: string, column: int, graphemes: [dynamic
 					cursor.cell_width = graphemes[i].width
 				} else if direction == .RIGHT {
 					cursor.column += (grapheme_width_in_columns - 1)
-					cursor.byte_location = graphemes[i + 1].byte_index
-					cursor.cell_width = graphemes[i + 1].width
+					if (i + 1 < len(graphemes)) { // NOTE: I'm not sure that this solution (if check) communicates understanding.
+						cursor.byte_location = graphemes[i + 1].byte_index
+						cursor.cell_width = graphemes[i + 1].width
+					}
 				}
 			} else {
 				fmt.println("columns_traversed == column")
@@ -90,14 +97,14 @@ safe_move_to_column  :: proc(line_text: string, column: int, graphemes: [dynamic
 }
 
 delete_grapheme :: proc(line_text: string, column: int, graphemes: [dynamic]utf8.Grapheme, direction: Direction) {
-	if (column == 0) {
-		if len(graphemes) == 0 {
-			cursor.cell_width = graphemes[0].width
-		} else {
-			cursor.cell_width = 1
-		}
-		return
-	}
+	// if (column == 0) {
+	// 	if len(graphemes) != 0 {
+	// 		cursor.cell_width = graphemes[0].width
+	// 	} else {
+	// 		cursor.cell_width = 1
+	// 	}
+	// 	return
+	// }
 	columns_traversed := -1
 	for i := 0; i < len(graphemes); i += 1 {
 		columns_traversed += graphemes[i].width
@@ -108,9 +115,22 @@ delete_grapheme :: proc(line_text: string, column: int, graphemes: [dynamic]utf8
 				cursor.byte_location = graphemes[i - 1].byte_index
 				cursor.column -= graphemes[i - 1].width
 				cursor.cell_width = graphemes[i].width
-			} else if direction == .RIGHT && (i + 1) < len(graphemes) {
-				remove_range(&lines[cursor.line].text, graphemes[i].byte_index, graphemes[i + 1].byte_index)
-				cursor.cell_width = graphemes[i + 1].width
+			// } else if direction == .RIGHT && (i + 1) < len(graphemes) {
+			} else if direction == .RIGHT {
+				fmt.println("LOL")
+				fmt.println("width: ", graphemes[i].width)
+				byte_index_after_grapheme, cursor_cell_width: int 
+				if (i + 1 < len(graphemes)) {
+					byte_index_after_grapheme = graphemes[i + 1].byte_index
+					cursor_cell_width = graphemes[i + 1].width
+				} else {
+					byte_index_after_grapheme = len(line_text)
+					cursor_cell_width = 1
+				}
+				// remove_range(&lines[cursor.line].text, graphemes[i].byte_index, graphemes[i + 1].byte_index)
+				remove_range(&lines[cursor.line].text, graphemes[i].byte_index, byte_index_after_grapheme)
+				// cursor.cell_width = graphemes[i + 1].width
+				cursor.cell_width = cursor_cell_width
 			}
 			update_line_data(&lines[cursor.line])
 			update_cursor_in_view(&cursor)

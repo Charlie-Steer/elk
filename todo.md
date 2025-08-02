@@ -1,4 +1,4 @@
-# Scratchpad
+## Scratchpad
 Saving edits:
 - Replacing spaces with tabs depending on configuration.
 - Assembling lines into single buffer with newlines.
@@ -6,8 +6,9 @@ Saving edits:
 
 # On sight:
 
-- Remove end of line space and fix ensuing bugs.
-- BUG: Index out of range when trying to move beyond bottom line.
+- Enter to split lines.
+
+- Force cursor to lower column if moving mid-grapheme.
 
 ---
 
@@ -17,8 +18,9 @@ Saving edits:
 - BUG: Make half-page jumps work.
 
 - BUG: Last line on screen doesn't render.
+- BUG: Index out of range when trying to move beyond bottom line.
 
-- NOTE: There are some subtle bugs with multi-column graphemes.
+- Implement tabbing.
 
 ---
 

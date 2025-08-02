@@ -29,7 +29,7 @@ copy_substring :: proc(slice: string) -> [dynamic]u8 {
 	for c, i in transmute([]u8)slice {
 		append(&substring, slice[i])
 	}
-	append(&substring, ' ')
+	// append(&substring, ' ')
 	// append(&substring, 0x00)
 	return substring
 }

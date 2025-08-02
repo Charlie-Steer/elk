@@ -69,11 +69,14 @@ run_events :: proc() {
 					fmt.println("PRESSED BACKSPACE!")
 					fmt.println("col: ", cursor.column)
 					if (cursor.column == 0) {
-						if (cursor.line >= 0) {
+						if (cursor.line > 0) {
 							move_cursor(&cursor, .UP, lines, 1)
 							move_cursor(&cursor, .RIGHT, lines, max(int) / 2)
+							line_is_empty := bool(len(lines[cursor.line].text) == 0)
 							merge_lines(&lines, cursor.line, cursor.line + 1)
-							move_cursor(&cursor, .RIGHT, lines, 1)
+							if (!line_is_empty) {
+								move_cursor(&cursor, .RIGHT, lines, 1)
+							}
 						}
 					} else {
 						// WARNING: Duplicated code with move_cursor()
@@ -82,7 +85,8 @@ run_events :: proc() {
 						delete_grapheme(line_text, cursor.column, line.graphemes, .LEFT)
 					}
 				} else if e.key.scancode == .DELETE {
-					if cursor.column + cursor.cell_width == lines[cursor.line].len_columns {
+					// if cursor.column + cursor.cell_width == lines[cursor.line].len_columns {
+					if cursor.column + (cursor.cell_width - 1) == lines[cursor.line].len_columns {
 						merge_lines(&lines, cursor.line, cursor.line + 1)
 					} else { 
 						line := lines[cursor.line]
