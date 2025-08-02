@@ -87,6 +87,8 @@ run_events :: proc() {
 					rune_bytes, n_bytes := utf8.encode_rune(r)
 					fmt.println(rune_bytes)
 					assert(n_bytes > 0 && n_bytes <= 4)
+					fmt.println("\ncursor.column: ", cursor.byte_location);
+					fmt.println("cursor.byte_location: ", cursor.byte_location, "\n");
 					if n_bytes == 1 {
 						inject_at_elem(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0])
 					} else if n_bytes == 2 {

@@ -7,18 +7,26 @@ Saving edits:
 # On sight:
 
 - BUG: insert on first character of line works incorrectly.
+- Backspace on first character merges lines.
+- Enter on a character splits lines.
+
+---
 
 - Rework text rendering into SDL Text Object system. Unsure if I can call render per word or line.
 
-- Refactor Rects into vectors (probably).
-
-- Refactor time stuff into procs.
-- Move procs in main to other files.
 
 - BUG: Make half-page jumps work.
 
+- BUG: Last line on screen doesn't render.
+
 - NOTE: There are some subtle bugs with multi-column graphemes.
 
+---
+
+- Refactor Rects into vectors?
+
+- Move procs in main to other files.
+- Refactor time stuff into procs.
 
 # Non-pressing:
 
@@ -61,6 +69,7 @@ Saving edits:
 - Info bar:
     - filename.
     - Error number.
+    - Integrated file scroll progress bar?
 
 - Multiple panels.
 

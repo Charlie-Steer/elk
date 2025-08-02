@@ -48,6 +48,7 @@ clamp_column :: proc(line_width_in_cells: int) {
 // NOTE: Could be called only when going into insert mode and on insert writes.
 loop_through_graphemes  :: proc(line_text: string, column: int, graphemes: [dynamic]utf8.Grapheme, direction: Direction) {
 	if (column == 0) {
+		cursor.byte_location = 0;
 		if len(graphemes) == 0 {
 			cursor.cell_width = graphemes[0].width
 		} else {
@@ -146,9 +147,14 @@ move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line,
 		clamp_column(line_width_in_cells)
 	}
 
+	// fmt.println("column before: ", cursor.column)
+	// fmt.println("byte before: ", cursor.byte_location)
+
 	grapheme_width_in_columns: int
 	// cursor.byte_location, grapheme_width_in_columns = loop_through_graphemes(line_text, cursor.column, graphemes, direction)
 	loop_through_graphemes(line_text, cursor.column, graphemes, direction)
+	// fmt.println("column after: ", cursor.column)
+	// fmt.println("byte after: ", cursor.byte_location)
 
 
 	// TODO: MAKE SO IF CURSOR DOESN'T LAND ON FIRST COL OF GRAPHEME, IT CORRECTS TO THE FIRST.

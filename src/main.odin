@@ -70,12 +70,16 @@ main :: proc() {
 
 	// FONT
 	// font.handle = ttf.OpenFont("/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf", f32(font.size))
-	font.handle = ttf.OpenFont("/home/charlie/projects/elk/JB-Nerd/JetBrainsMonoNerdFont-Regular.ttf", f32(font_size))
-	emoji_font: Font
-	emoji_font.handle = ttf.OpenFont("/home/charlie/projects/elk/NotoColorEmoji.ttf", f32(font_size))
-
+	font.handle = ttf.OpenFont("/home/charlie/projects/elk/fonts/JB-Nerd/JetBrainsMonoNerdFont-Regular.ttf", f32(font_size))
 	if (font.handle == nil) do error_and_exit()
 	defer ttf.CloseFont(font.handle)
+
+	emoji_font: Font
+	emoji_font.handle = ttf.OpenFont("/home/charlie/projects/elk/fonts/NotoColorEmoji.ttf", f32(font_size))
+
+	if (emoji_font.handle == nil) do error_and_exit()
+	defer ttf.CloseFont(emoji_font.handle)
+
 	font.dimensions = csl.get_monospaced_font_dimensions(font.handle)
 
 	// NOTE: Do I want to have the file open for the duration of the program or just on open and on save?
@@ -150,6 +154,7 @@ main :: proc() {
 		render_lines(frame, lines, index_first, index_last)
 
 		// Cursor.
+		// fmt.println("\ncursor.column: ", cursor.byte_location);
 		render_cursor(&cursor, index_first)
 
 		if (show_fps_counter) do draw_fps_counter(renderer, fps_texture)
