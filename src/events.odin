@@ -67,41 +67,35 @@ run_events :: proc() {
 					mode = .NORMAL
 				} else if e.key.scancode == .BACKSPACE {
 					fmt.println("PRESSED BACKSPACE!")
-					// WARNING: Duplicated code with move_cursor()
-					line := lines[cursor.line]
-					line_text := string(line.text[:])
-					graphemes, grapheme_count, rune_count, line_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
-					delete_grapheme(line_text, cursor.column, graphemes, .LEFT)
+					fmt.println("col: ", cursor.column)
+					if (cursor.column == 0) {
+						if (cursor.line >= 0) {
+							move_cursor(&cursor, .UP, lines, 1)
+							move_cursor(&cursor, .RIGHT, lines, max(int) / 2)
+							merge_lines(&lines, cursor.line, cursor.line + 1)
+							move_cursor(&cursor, .RIGHT, lines, 1)
+						}
+					} else {
+						// WARNING: Duplicated code with move_cursor()
+						line := lines[cursor.line]
+						line_text := string(line.text[:])
+						delete_grapheme(line_text, cursor.column, line.graphemes, .LEFT)
+					}
 				} else if e.key.scancode == .DELETE {
-					line := lines[cursor.line]
-					line_text := string(line.text[:])
-					graphemes, grapheme_count, rune_count, line_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
-					delete_grapheme(line_text, cursor.column, graphemes, .RIGHT)
+					if cursor.column + cursor.cell_width == lines[cursor.line].len_columns {
+						merge_lines(&lines, cursor.line, cursor.line + 1)
+					} else { 
+						line := lines[cursor.line]
+						line_text := string(line.text[:])
+						delete_grapheme(line_text, cursor.column, line.graphemes, .RIGHT)
+					}
 				}
 			}
 		case .TEXT_INPUT:
 			if e.type == sdl.EventType.TEXT_INPUT {
 				fmt.println("TEXT_INPUT event!")
 				for r in string(e.text.text) {
-					fmt.println("r: ", r)
-					rune_bytes, n_bytes := utf8.encode_rune(r)
-					fmt.println(rune_bytes)
-					assert(n_bytes > 0 && n_bytes <= 4)
-					fmt.println("\ncursor.column: ", cursor.byte_location);
-					fmt.println("cursor.byte_location: ", cursor.byte_location, "\n");
-					if n_bytes == 1 {
-						inject_at_elem(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0])
-					} else if n_bytes == 2 {
-						inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1])
-					} else if n_bytes == 3 {
-						inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1], rune_bytes[2])
-					} else {
-						inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1], rune_bytes[2], rune_bytes[3])
-					}
-					move_cursor(&cursor, .RIGHT, lines, 1)
-					fmt.printfln("%v", lines[cursor.line].text)
-					fmt.printfln("%s", lines[cursor.line].text)
-					// fmt.printfln("correct: %v", transmute([]u8)string("día"))
+					insert_rune_in_line(&lines[cursor.line], r)
 				}
 			}
 		}

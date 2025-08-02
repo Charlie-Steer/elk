@@ -6,9 +6,8 @@ Saving edits:
 
 # On sight:
 
-- BUG: insert on first character of line works incorrectly.
-- Backspace on first character merges lines.
-- Enter on a character splits lines.
+- Remove end of line space and fix ensuing bugs.
+- BUG: Index out of range when trying to move beyond bottom line.
 
 ---
 

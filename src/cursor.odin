@@ -40,13 +40,12 @@ Move_Unit :: enum {
 }
 
 
-clamp_column :: proc(line_width_in_cells: int) {
+clamp_cursor_column :: proc(cursor: ^Cursor, line_width_in_cells: int) {
 	u.clamp(&cursor.column, 0, line_width_in_cells - 1)
 }
 
-// TODO: Needs refactor into something more sensible. Shared interface with switch for .MOVE and .REMOVE?
-// NOTE: Could be called only when going into insert mode and on insert writes.
-loop_through_graphemes  :: proc(line_text: string, column: int, graphemes: [dynamic]utf8.Grapheme, direction: Direction) {
+// NOTE: This and delete_grapheme are awfully close in implementation.
+safe_move_to_column  :: proc(line_text: string, column: int, graphemes: [dynamic]utf8.Grapheme, direction: Direction) {
 	if (column == 0) {
 		cursor.byte_location = 0;
 		if len(graphemes) == 0 {
@@ -113,6 +112,7 @@ delete_grapheme :: proc(line_text: string, column: int, graphemes: [dynamic]utf8
 				remove_range(&lines[cursor.line].text, graphemes[i].byte_index, graphemes[i + 1].byte_index)
 				cursor.cell_width = graphemes[i + 1].width
 			}
+			update_line_data(&lines[cursor.line])
 			update_cursor_in_view(&cursor)
 			return
 		}
@@ -122,39 +122,42 @@ delete_grapheme :: proc(line_text: string, column: int, graphemes: [dynamic]utf8
 }
 
 // NOTE: Clamp cursor on movement instead of (just) posterior correction?
-move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line, grapheme_amount: int) {
+move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line, cell_amount := int(1)) {
 	#partial switch direction {
 		case .DOWN:
-			cursor.line += 1
+			cursor.line += cell_amount
 		case .UP:
-			cursor.line -= 1
+			cursor.line -= cell_amount
 		case .LEFT:
-			cursor.column -= 1
+			cursor.column -= cell_amount
 		case .RIGHT:
-			cursor.column += 1
+			cursor.column += cell_amount
 	}
-	u.clamp(&cursor.line, 0, number_of_lines)
+	fmt.println("column start: ", cursor.column)
+	clamp_cursor_line :: proc(cursor: ^Cursor, line_count: int) {
+		u.clamp(&cursor.line, 0, line_count)
+	}
+	// u.clamp(&cursor.line, 0, line_count)
+	clamp_cursor_line(cursor, line_count)
 
 	line := lines[cursor.line]
 	line_text := string(line.text[:])
-	graphemes, grapheme_count, rune_count, line_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
+	// graphemes, grapheme_count, _, line_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
 
 	if (direction == .LEFT || direction == .RIGHT) {
-		clamp_column(line_width_in_cells)
+		clamp_cursor_column(cursor, line.len_columns)
 		cursor.column_in_memory = cursor.column
 	} else if (direction == .DOWN || direction == .UP) {
 		cursor.column = cursor.column_in_memory
-		clamp_column(line_width_in_cells)
+		clamp_cursor_column(cursor, line.len_columns)
 	}
 
-	// fmt.println("column before: ", cursor.column)
-	// fmt.println("byte before: ", cursor.byte_location)
+	fmt.println("column before: ", cursor.column)
+	fmt.println("byte before: ", cursor.byte_location)
 
-	grapheme_width_in_columns: int
-	// cursor.byte_location, grapheme_width_in_columns = loop_through_graphemes(line_text, cursor.column, graphemes, direction)
-	loop_through_graphemes(line_text, cursor.column, graphemes, direction)
-	// fmt.println("column after: ", cursor.column)
-	// fmt.println("byte after: ", cursor.byte_location)
+	safe_move_to_column(line_text, cursor.column, line.graphemes, direction)
+	fmt.println("column after: ", cursor.column)
+	fmt.println("byte after: ", cursor.byte_location)
 
 
 	// TODO: MAKE SO IF CURSOR DOESN'T LAND ON FIRST COL OF GRAPHEME, IT CORRECTS TO THE FIRST.
@@ -254,18 +257,17 @@ make_cursor_follow_view :: proc(cursor: ^Cursor, view: View) {
 
 	line := lines[cursor.line]
 	line_text := string(line.text[:])
-	_, _, _, line_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
 
 	if cursor.line < view.cell_rect.position.y {
 		fmt.println("cursor was above view.", view.cell_rect.position, iVec2{cursor.line, cursor.column})
 		cursor.line = view.cell_rect.position.y
 		cursor.column = cursor.column_in_memory
-		clamp_column(line_width_in_cells)
+		clamp_cursor_column(cursor, line.len_columns)
 	} else if cursor.line >= view.cell_rect.position.y + view.cell_rect.dimensions.y {
 		fmt.println("cursor was under view.", view.cell_rect.position, iVec2{cursor.line, cursor.column})
 		cursor.line = view.cell_rect.position.y + view.cell_rect.dimensions.y - 1
 		cursor.column = cursor.column_in_memory
-		clamp_column(line_width_in_cells)
+		clamp_cursor_column(cursor, line.len_columns)
 	}
 
 	update_cursor_in_view(cursor)

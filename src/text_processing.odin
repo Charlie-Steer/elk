@@ -90,3 +90,17 @@ combine_lines_into_single_buffer_and_save_file :: proc(lines: [dynamic]Line) {
 		fmt.printfln("Wrote %v bytes.", bytes_written)
 	}
 }
+
+// Creating and destroying lines.
+
+merge_lines :: proc(lines: ^[dynamic]Line, index_a, index_b: int) {
+	if (index_a < 0 || index_b >= len(lines)) {
+		return
+	}
+
+	append_elem_string(&lines[index_a].text, string(lines[index_b].text[:]))
+
+	ordered_remove(lines, index_b)
+
+	update_line_data(&lines[cursor.line])
+}

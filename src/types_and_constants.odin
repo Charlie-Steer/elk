@@ -5,6 +5,7 @@ import ttf "vendor:sdl3/ttf"
 import wsdl "sdl3_wrapper"
 import wttf "sdl3_ttf_wrapper"
 import "core:time"
+import "core:unicode/utf8"
 
 // NOTE: Not all types and constants are featured here.
 // Only those that didn't seem specially relevant to any particular file.
@@ -46,6 +47,12 @@ Line :: struct {
 	text: [dynamic]u8,
 	height_in_lines: int,
 	index: int,
+	
+	graphemes: [dynamic]utf8.Grapheme,
+	len_columns: int,
+	len_graphemes: int,
+
+	is_dirty: bool,
 }
 
 Margins :: struct {

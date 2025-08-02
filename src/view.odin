@@ -33,7 +33,7 @@ move_view :: proc(view: ^View, direction: Direction) {
 	}
 
 	// Correction.
-	u.clamp(&view.cell_rect.position.y, -max_view_lines_above_text, number_of_lines - view.number_of_lines_that_fit_on_screen + max_view_lines_under_text)
+	u.clamp(&view.cell_rect.position.y, -max_view_lines_above_text, line_count - view.number_of_lines_that_fit_on_screen + max_view_lines_under_text)
 	// TODO: Sophisticated right view clamp.
 	u.clamp_min(&view.cell_rect.position.x, -max_view_lines_left_of_text)
 

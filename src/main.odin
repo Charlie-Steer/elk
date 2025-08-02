@@ -19,6 +19,7 @@ import "core:strings"
 import "core:math"
 import "core:time"
 import "core:strconv"
+import "core:unicode/utf8"
 
 Mode :: enum {
 	NORMAL,
@@ -37,7 +38,7 @@ font := Font{
 emoji_font := font
 
 lines: [dynamic]Line
-number_of_lines: int
+line_count: int
 
 app_time: App_Time;
 
@@ -104,14 +105,17 @@ main :: proc() {
 	fps_texture: ^sdl.Texture
 	upkeep_view(&view, cursor)
 	cursor.rect.dimensions = {f32(font.dimensions.x), f32(font.dimensions.y)}
+	update_lines_data(lines[:])
 	for !window.should_close {
 		frame_start_time := sdl.GetTicksNS()
 		run_events()
 
+		// update_lines_textures(lines[:])
+
 		sdl.RenderClear(renderer)
 
 		// Update state.
-		number_of_lines = len(lines)
+		line_count = len(lines)
 
 		upkeep_view(&view, cursor)
 		if first_iteration do fmt.println("view.dimensions_in_chars: ", view.cell_rect.dimensions)
@@ -197,7 +201,7 @@ main :: proc() {
 
 get_indeces_for_lines_in_view :: proc(lines: [dynamic]Line) -> (start_index, end_index: int) {
 	start_index = u.get_clamped_min(view.cell_rect.position.y, 0)
-	end_index = u.get_clamped(view.cell_rect.position.y + (window.dimensions.y / font.dimensions.y) - 1, 0, number_of_lines - 1)
+	end_index = u.get_clamped(view.cell_rect.position.y + (window.dimensions.y / font.dimensions.y) - 1, 0, line_count - 1)
 	return start_index, end_index
 }
 
@@ -206,8 +210,53 @@ set_line_indeces_and_number_of_lines :: proc(lines: ^[dynamic]Line) {
 	for ; i < len(lines); i += 1 {
 		lines[i].index = i
 	}
-	number_of_lines = i
+	line_count = i
 	// fmt.println("number_of_lines: ", number_of_lines)
+}
+
+update_line_data :: proc(line: ^Line) {
+	line.graphemes, line.len_graphemes, _, line.len_columns = utf8.decode_grapheme_clusters(string(line.text[:]), true)
+}
+
+update_lines_data :: proc(lines: []Line) {
+	for &line in lines {
+		line.graphemes, line.len_graphemes, _, line.len_columns = utf8.decode_grapheme_clusters(string(line.text[:]), true)
+	}
+}
+
+insert_rune_in_line :: proc(line: ^Line, r: rune) {
+	fmt.println("r: ", r)
+	rune_bytes, n_bytes := utf8.encode_rune(r)
+	fmt.println(rune_bytes)
+	assert(n_bytes > 0 && n_bytes <= 4)
+	fmt.println("\ncursor.column: ", cursor.byte_location);
+	fmt.println("cursor.byte_location: ", cursor.byte_location, "\n");
+	if n_bytes == 1 {
+		inject_at_elem(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0])
+	} else if n_bytes == 2 {
+		inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1])
+	} else if n_bytes == 3 {
+		inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1], rune_bytes[2])
+	} else {
+		inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1], rune_bytes[2], rune_bytes[3])
+	}
+	move_cursor(&cursor, .RIGHT, lines, 1)
+	fmt.printfln("%v", lines[cursor.line].text)
+	fmt.printfln("%s", lines[cursor.line].text)
+	// fmt.printfln("correct: %v", transmute([]u8)string("día"))
+}
+
+// NOTE: NOT IN USE YET.
+update_lines_textures :: proc(lines: []Line) {
+	i: int
+	for ; i < len(lines); i += 1 {
+		line := lines[i]
+		if line.is_dirty {
+			// RENDER TEXTURE
+		}
+		line.index = i
+	}
+	line_count = i
 }
 
 // LAST LINE
