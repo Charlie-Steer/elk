@@ -240,6 +240,7 @@ insert_rune_in_line :: proc(line: ^Line, r: rune) {
 	} else {
 		inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1], rune_bytes[2], rune_bytes[3])
 	}
+	update_line_data(&lines[cursor.line])
 	move_cursor(&cursor, .RIGHT, lines, 1)
 	fmt.printfln("%v", lines[cursor.line].text)
 	fmt.printfln("%s", lines[cursor.line].text)
