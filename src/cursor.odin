@@ -44,7 +44,7 @@ clamp_column :: proc(line_width_in_cells: int) {
 	u.clamp(&cursor.column, 0, line_width_in_cells - 1)
 }
 
-// TODO: Rename into something sensible.
+// TODO: Needs refactor into something more sensible. Shared interface with switch for .MOVE and .REMOVE?
 // NOTE: Could be called only when going into insert mode and on insert writes.
 loop_through_graphemes  :: proc(line_text: string, column: int, graphemes: [dynamic]utf8.Grapheme, direction: Direction) {
 	if (column == 0) {
@@ -61,10 +61,10 @@ loop_through_graphemes  :: proc(line_text: string, column: int, graphemes: [dyna
 	for i := 0; i < len(graphemes); i += 1 {
 		grapheme_index = i
 		grapheme_width_in_columns = graphemes[i].width
-		fmt.println("GRAPHEME WIDTH: ", grapheme_width_in_columns)
+		// fmt.println("GRAPHEME WIDTH: ", grapheme_width_in_columns)
 		columns_traversed += grapheme_width_in_columns
-		fmt.println(column)
-		fmt.println(columns_traversed, "\n")
+		// fmt.println(column)
+		// fmt.println(columns_traversed, "\n")
 		if (columns_traversed >= column) {
 			if columns_traversed > column {
 				fmt.println("columns_traversed > column")
@@ -82,6 +82,37 @@ loop_through_graphemes  :: proc(line_text: string, column: int, graphemes: [dyna
 				cursor.byte_location = graphemes[i + 1].byte_index
 				cursor.cell_width = graphemes[i + 1].width
 			}
+			return
+		}
+	}
+
+	fmt.println("grapheme_count < column_index")
+}
+
+delete_grapheme :: proc(line_text: string, column: int, graphemes: [dynamic]utf8.Grapheme, direction: Direction) {
+	if (column == 0) {
+		if len(graphemes) == 0 {
+			cursor.cell_width = graphemes[0].width
+		} else {
+			cursor.cell_width = 1
+		}
+		return
+	}
+	columns_traversed := -1
+	for i := 0; i < len(graphemes); i += 1 {
+		columns_traversed += graphemes[i].width
+		fmt.println(i, columns_traversed, column)
+		if (columns_traversed >= column) {
+			if direction == .LEFT {
+				remove_range(&lines[cursor.line].text, graphemes[i - 1].byte_index, graphemes[i].byte_index)
+				cursor.byte_location = graphemes[i - 1].byte_index
+				cursor.column -= graphemes[i - 1].width
+				cursor.cell_width = graphemes[i].width
+			} else if direction == .RIGHT && (i + 1) < len(graphemes) {
+				remove_range(&lines[cursor.line].text, graphemes[i].byte_index, graphemes[i + 1].byte_index)
+				cursor.cell_width = graphemes[i + 1].width
+			}
+			update_cursor_in_view(&cursor)
 			return
 		}
 	}
@@ -121,20 +152,6 @@ move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line,
 
 
 	// TODO: MAKE SO IF CURSOR DOESN'T LAND ON FIRST COL OF GRAPHEME, IT CORRECTS TO THE FIRST.
-	// TODO: MAKE SO WITH OF CURSOR IS WIDTH OF GRAPHEME
-
-	// if (grapheme_width_in_columns > 1) {
-	// 	switch direction {
-	// 		case .LEFT:
-	// 			cursor.column -= grapheme_width_in_columns - 1
-	// 		case .DOWN:
-	// 			cursor.line += grapheme_width_in_columns - 1
-	// 		case .UP:
-	// 			cursor.line -= grapheme_width_in_columns - 1
-	// 		case .RIGHT:
-	// 			cursor.column += grapheme_width_in_columns - 1
-	// 	}
-	// }
 
 	// NOTE: update_cursor_in_view() unnecessary if make_view_follow_cursor() based on absolute text location
 	update_cursor_in_view(cursor)

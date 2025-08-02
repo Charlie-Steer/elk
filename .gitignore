@@ -2,3 +2,5 @@ elk
 *.ttf
 examples/
 testing/
+edit_playground/
+fonts/

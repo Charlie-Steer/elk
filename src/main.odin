@@ -161,7 +161,7 @@ main :: proc() {
 		// Time end.
 
 		frame_end_time := sdl.GetTicksNS()
-		if (lock_framerate) {
+		if lock_framerate {
 			alloted_frame_time := u64(1_000_000_000 / target_fps)
 			excedent_frame_time := (frame_start_time + alloted_frame_time) - frame_end_time
 			if (excedent_frame_time > 0) {

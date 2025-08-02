@@ -6,8 +6,9 @@ Saving edits:
 
 # On sight:
 
-- Deleting characters in write mode.
 - BUG: insert on first character of line works incorrectly.
+
+- Rework text rendering into SDL Text Object system. Unsure if I can call render per word or line.
 
 - Refactor Rects into vectors (probably).
 
@@ -15,6 +16,8 @@ Saving edits:
 - Move procs in main to other files.
 
 - BUG: Make half-page jumps work.
+
+- NOTE: There are some subtle bugs with multi-column graphemes.
 
 
 # Non-pressing:

@@ -65,12 +65,25 @@ run_events :: proc() {
 				if e.key.scancode == .CAPSLOCK || e.key.scancode == .ESCAPE {
 					sdl.StopTextInput(window.handle);
 					mode = .NORMAL
+				} else if e.key.scancode == .BACKSPACE {
+					fmt.println("PRESSED BACKSPACE!")
+					// WARNING: Duplicated code with move_cursor()
+					line := lines[cursor.line]
+					line_text := string(line.text[:])
+					graphemes, grapheme_count, rune_count, line_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
+					delete_grapheme(line_text, cursor.column, graphemes, .LEFT)
+				} else if e.key.scancode == .DELETE {
+					line := lines[cursor.line]
+					line_text := string(line.text[:])
+					graphemes, grapheme_count, rune_count, line_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
+					delete_grapheme(line_text, cursor.column, graphemes, .RIGHT)
 				}
 			}
 		case .TEXT_INPUT:
 			if e.type == sdl.EventType.TEXT_INPUT {
 				fmt.println("TEXT_INPUT event!")
 				for r in string(e.text.text) {
+					fmt.println("r: ", r)
 					rune_bytes, n_bytes := utf8.encode_rune(r)
 					fmt.println(rune_bytes)
 					assert(n_bytes > 0 && n_bytes <= 4)

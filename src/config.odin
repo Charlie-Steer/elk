@@ -17,4 +17,4 @@ show_fps_counter := true
 lock_framerate := false
 target_fps := 60
 
-maximized := false
+maximized := true
