@@ -23,15 +23,19 @@ run_events :: proc() {
 				if e.key.scancode == .Q {
 					window.should_close = true
 				} else if keycode == 'H' {
+					move_view(&view, .LEFT, (window.dimensions.x / font.dimensions.x) / 2)
 					view.cell_rect.position.x -= (window.dimensions.x / font.dimensions.x) / 2
 				} else if keycode == 'J' {
-					view.cell_rect.position.y += (window.dimensions.y / font.dimensions.y) / 2
+					move_view(&view, .DOWN, (window.dimensions.y / font.dimensions.y) / 2)
+					// view.cell_rect.position.y += (window.dimensions.y / font.dimensions.y) / 2
 					// fmt.println(window.height, font.dimensions.y, (window.height / font.dimensions.y) / 2)
 				} else if keycode == 'K' {
-					view.cell_rect.position.y -= (window.dimensions.y / font.dimensions.y) / 2
+					move_view(&view, .UP, (window.dimensions.y / font.dimensions.y) / 2)
+					// view.cell_rect.position.y -= (window.dimensions.y / font.dimensions.y) / 2
 					// fmt.println(window.height, font.dimensions.y, (window.height / font.dimensions.y) / 2)
 				} else if keycode == 'L' {
-					view.cell_rect.position.x += (window.dimensions.x / font.dimensions.x) / 2
+					move_view(&view, .RIGHT, (window.dimensions.x / font.dimensions.x) / 2)
+					// view.cell_rect.position.x += (window.dimensions.x / font.dimensions.x) / 2
 				} else if e.key.scancode == .H && e.key.mod == sdl.KMOD_NONE {
 					move_cursor(&cursor, .LEFT, lines, 1)
 				} else if e.key.scancode == .J && e.key.mod == sdl.KMOD_NONE {
@@ -41,13 +45,13 @@ run_events :: proc() {
 				} else if e.key.scancode == .L && e.key.mod == sdl.KMOD_NONE {
 					move_cursor(&cursor, .RIGHT, lines, 1)
 				} else if e.key.scancode == .H && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
-					move_view(&view, .LEFT)
+					move_view(&view, .LEFT, 1)
 				} else if e.key.scancode == .J && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
-					move_view(&view, .DOWN)
+					move_view(&view, .DOWN, 1)
 				} else if e.key.scancode == .K && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
-					move_view(&view, .UP)
+					move_view(&view, .UP, 1)
 				} else if e.key.scancode == .L && e.key.mod & sdl.KMOD_ALT != sdl.KMOD_NONE {
-					move_view(&view, .RIGHT)
+					move_view(&view, .RIGHT, 1)
 				} else if e.key.scancode == .D {
 					debug_rendering = !debug_rendering
 				} else if (e.key.scancode == .F) && (e.key.mod & sdl.KMOD_SHIFT != sdl.KMOD_NONE) {
@@ -93,6 +97,8 @@ run_events :: proc() {
 						line_text := string(line.text[:])
 						delete_grapheme(line_text, cursor.column, line.graphemes, .RIGHT)
 					}
+				} else if e.key.scancode == .RETURN {
+
 				}
 			}
 		case .TEXT_INPUT:

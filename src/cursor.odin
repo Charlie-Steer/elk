@@ -141,8 +141,7 @@ delete_grapheme :: proc(line_text: string, column: int, graphemes: [dynamic]utf8
 	fmt.println("grapheme_count < column_index")
 }
 
-// NOTE: Clamp cursor on movement instead of (just) posterior correction?
-move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line, cell_amount := int(1)) {
+move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line, cell_amount := 1) {
 	#partial switch direction {
 		case .DOWN:
 			cursor.line += cell_amount
@@ -175,7 +174,14 @@ move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line,
 	fmt.println("column before: ", cursor.column)
 	fmt.println("byte before: ", cursor.byte_location)
 
-	safe_move_to_column(line_text, cursor.column, line.graphemes, direction)
+
+	gravity_enabled := true
+	if (direction == .RIGHT) {
+		gravity_enabled = false
+	}
+	_, cursor.column, cursor.byte_location, cursor.cell_width = traverse_line_to_column(&lines[cursor.line], cursor.column, gravity_enabled)
+
+	// safe_move_to_column(line_text, cursor.column, line.graphemes, direction)
 	fmt.println("column after: ", cursor.column)
 	fmt.println("byte after: ", cursor.byte_location)
 
@@ -188,6 +194,54 @@ move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line,
 	update_cursor_in_view(cursor)
 	// fmt.println("MOVED CURSOR", view.cell_rect.position, cursor.grid_location)
 }
+
+// // NOTE: Clamp cursor on movement instead of (just) posterior correction?
+// move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line, cell_amount := int(1)) {
+// 	#partial switch direction {
+// 		case .DOWN:
+// 			cursor.line += cell_amount
+// 		case .UP:
+// 			cursor.line -= cell_amount
+// 		case .LEFT:
+// 			cursor.column -= cell_amount
+// 		case .RIGHT:
+// 			cursor.column += cell_amount
+// 	}
+// 	fmt.println("column start: ", cursor.column)
+// 	clamp_cursor_line :: proc(cursor: ^Cursor, line_count: int) {
+// 		u.clamp(&cursor.line, 0, line_count)
+// 	}
+// 	// u.clamp(&cursor.line, 0, line_count)
+// 	clamp_cursor_line(cursor, line_count)
+//
+// 	line := lines[cursor.line]
+// 	line_text := string(line.text[:])
+// 	// graphemes, grapheme_count, _, line_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
+//
+// 	if (direction == .LEFT || direction == .RIGHT) {
+// 		clamp_cursor_column(cursor, line.len_columns)
+// 		cursor.column_in_memory = cursor.column
+// 	} else if (direction == .DOWN || direction == .UP) {
+// 		cursor.column = cursor.column_in_memory
+// 		clamp_cursor_column(cursor, line.len_columns)
+// 	}
+//
+// 	fmt.println("column before: ", cursor.column)
+// 	fmt.println("byte before: ", cursor.byte_location)
+//
+// 	safe_move_to_column(line_text, cursor.column, line.graphemes, direction)
+// 	fmt.println("column after: ", cursor.column)
+// 	fmt.println("byte after: ", cursor.byte_location)
+//
+//
+// 	// TODO: MAKE SO IF CURSOR DOESN'T LAND ON FIRST COL OF GRAPHEME, IT CORRECTS TO THE FIRST.
+//
+// 	// NOTE: update_cursor_in_view() unnecessary if make_view_follow_cursor() based on absolute text location
+// 	update_cursor_in_view(cursor)
+// 	make_view_follow_cursor(&view, cursor^)
+// 	update_cursor_in_view(cursor)
+// 	// fmt.println("MOVED CURSOR", view.cell_rect.position, cursor.grid_location)
+// }
 
 
 // // NOTE: Clamp cursor on movement instead of (just) posterior correction?

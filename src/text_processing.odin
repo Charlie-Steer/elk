@@ -4,6 +4,7 @@ import "core:strings"
 import "core:unicode/utf8"
 import "core:fmt"
 import "core:os"
+import u "charlie-utils"
 
 // NOTE: Add error handling?
 // NOTE: Apparently theres an expand_tabs proc on core:strings
@@ -103,4 +104,65 @@ merge_lines :: proc(lines: ^[dynamic]Line, index_a, index_b: int) {
 	ordered_remove(lines, index_b)
 
 	update_line_data(&lines[cursor.line])
+}
+
+
+// TODO: Return cursor_width also.
+traverse_line_to_column :: proc(line: ^Line, target_column: int, gravity_enabled := true, allow_col_after_end := false) -> (grapheme_idx, col_idx, byte_idx, grapheme_width: int) {
+	if len(line.text) == 0 {
+		return 0, 0, 0, 1
+	}
+	last_column := (line.len_columns - 1)
+	if allow_col_after_end {
+		last_column += 1
+	}
+	target_col := u.get_clamped(target_column, 0, last_column) // NOTE: One over real columns, to be able to insert characters at the end of the line.
+
+	grapheme := line.graphemes[grapheme_idx]
+	for col_idx < target_col { //😊😊😊a
+		assert(grapheme.width >= 1)
+		col_idx += grapheme.width >= 1 ? grapheme.width : 1 // NOTE: Probably unnecessary ternary operation but just in case.
+
+		if (col_idx > target_col) {
+			if gravity_enabled || col_idx > last_column {
+				col_idx -= grapheme.width
+				break
+			}
+		}
+
+		graphemes_len := len(line.graphemes)
+		if (grapheme_idx + 1 < graphemes_len) {
+			grapheme_idx += 1
+			grapheme = line.graphemes[grapheme_idx]
+			byte_idx = grapheme.byte_index
+		} else if (allow_col_after_end && (col_idx == line.len_columns)) {
+			// NOTE: Unsure if returning -1 for non-valid values is the right thing. For byte_idx it could be len(lines.text) although not a valid index.
+			return -1, line.len_columns, -1, 1
+		} else {
+			return grapheme_idx, col_idx, grapheme.byte_index, grapheme.width
+		}
+	}
+	return grapheme_idx, col_idx, byte_idx, grapheme.width
+}
+
+split_line_at_cursor :: proc(lines: []Line, cursor: Cursor) {
+	line := lines[cursor.column]
+	// grapheme_idx, col_idx, byte_idx := 0, 0, 0
+	grapheme_idx := 0
+	col_idx := 0
+	byte_idx := 0
+	for col_idx < line.len_columns {
+		
+
+
+
+
+		if (col_idx + 1 < line.len_columns) {
+			byte_idx = line.graphemes[grapheme_idx].byte_index
+		} else {
+			byte_idx = len(line.text)
+		}
+		grapheme_idx += 1
+		col_idx += line.graphemes[col_idx].width
+	}
 }

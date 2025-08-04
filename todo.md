@@ -6,9 +6,11 @@ Saving edits:
 
 # On sight:
 
-- Enter to split lines.
+- Implement append. Specially of note, appending after the line end.
 
-- Force cursor to lower column if moving mid-grapheme.
+- Replace merge walk-through section with new standarized walk-through-string function.
+
+- Enter to split lines.
 
 ---
 

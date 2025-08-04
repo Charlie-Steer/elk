@@ -20,16 +20,16 @@ View :: struct {
 
 view: View
 
-move_view :: proc(view: ^View, direction: Direction) {
+move_view :: proc(view: ^View, direction: Direction, cell_amount: int) {
 	switch direction {
 		case .LEFT:
-			view.cell_rect.position.x -= 1;
+			view.cell_rect.position.x -= cell_amount;
 		case .DOWN:
-			view.cell_rect.position.y += 1;
+			view.cell_rect.position.y += cell_amount;
 		case .UP:
-			view.cell_rect.position.y -= 1;
+			view.cell_rect.position.y -= cell_amount;
 		case .RIGHT:
-			view.cell_rect.position.x += 1;
+			view.cell_rect.position.x += cell_amount;
 	}
 
 	// Correction.
