@@ -104,10 +104,12 @@ merge_lines :: proc(lines: ^[dynamic]Line, index_a, index_b: int) {
 	ordered_remove(lines, index_b)
 
 	update_line_data(&lines[cursor.line])
+	set_line_indeces_and_number_of_lines(lines)
 }
 
 
 // TODO: Return cursor_width also.
+@(require_results)
 traverse_line_to_column :: proc(line: ^Line, target_column: int, gravity_enabled := true, allow_col_after_end := false) -> (grapheme_idx, col_idx, byte_idx, grapheme_width: int) {
 	if len(line.text) == 0 {
 		return 0, 0, 0, 1
@@ -145,24 +147,19 @@ traverse_line_to_column :: proc(line: ^Line, target_column: int, gravity_enabled
 	return grapheme_idx, col_idx, byte_idx, grapheme.width
 }
 
-split_line_at_cursor :: proc(lines: []Line, cursor: Cursor) {
-	line := lines[cursor.column]
-	// grapheme_idx, col_idx, byte_idx := 0, 0, 0
-	grapheme_idx := 0
-	col_idx := 0
-	byte_idx := 0
-	for col_idx < line.len_columns {
-		
+split_line_at_cursor :: proc(lines: ^[dynamic]Line, cursor: Cursor) {
+	line := &lines[cursor.line]
+	// grapheme_idx, col_idx, byte_idx, grapheme_width := traverse_line_to_column(&line, cursor.column, gravity_enabled=true)
+	grapheme_idx, col_idx, byte_idx, grapheme_width := traverse_line_to_column(line, cursor.column, gravity_enabled=true)
 
+	new_text := make([dynamic]u8)
+	append_string(&new_text, string(line.text[byte_idx:]))
+	fmt.println(cursor.byte_location, len(line.text))
+	remove_range(&line.text, cursor.byte_location, len(line.text))
 
-
-
-		if (col_idx + 1 < line.len_columns) {
-			byte_idx = line.graphemes[grapheme_idx].byte_index
-		} else {
-			byte_idx = len(line.text)
-		}
-		grapheme_idx += 1
-		col_idx += line.graphemes[col_idx].width
-	}
+	inject_at_elem(lines, cursor.line + 1, Line{text = new_text})
+	update_lines_data(lines[cursor.line : cursor.line + 2])
+	set_line_indeces_and_number_of_lines(lines)
+	fmt.println("new_string: ", string(lines[cursor.line + 1].text[:]))
+	fmt.println("old_string: ", string(lines[cursor.line].text[:]))
 }

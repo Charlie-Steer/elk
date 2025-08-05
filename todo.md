@@ -6,9 +6,13 @@ Saving edits:
 
 # On sight:
 
+- Re-implement delete character with new walk-through function.
+
 - Implement append. Specially of note, appending after the line end.
 
 - Replace merge walk-through section with new standarized walk-through-string function.
+
+- BUG: Inserting first character on empty line doesn't move cursor to the right.
 
 - Enter to split lines.
 

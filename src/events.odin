@@ -98,7 +98,7 @@ run_events :: proc() {
 						delete_grapheme(line_text, cursor.column, line.graphemes, .RIGHT)
 					}
 				} else if e.key.scancode == .RETURN {
-
+					split_line_at_cursor(&lines, cursor)
 				}
 			}
 		case .TEXT_INPUT:
