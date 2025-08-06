@@ -118,8 +118,10 @@ traverse_line_to_column :: proc(line: ^Line, target_column: int, gravity_enabled
 	if allow_col_after_end {
 		last_column += 1
 	}
+
 	target_col := u.get_clamped(target_column, 0, last_column) // NOTE: One over real columns, to be able to insert characters at the end of the line.
 
+	fmt.printfln("col: %d\nlast_col: %d\ntarget_col: %d\n", cursor.column, last_column, target_column)
 	grapheme := line.graphemes[grapheme_idx]
 	for col_idx < target_col { //😊😊😊a
 		assert(grapheme.width >= 1)
@@ -128,6 +130,7 @@ traverse_line_to_column :: proc(line: ^Line, target_column: int, gravity_enabled
 		if (col_idx > target_col) {
 			if gravity_enabled || col_idx > last_column {
 				col_idx -= grapheme.width
+				fmt.println("Went past last column and had to be corrected.")
 				break
 			}
 		}
@@ -136,15 +139,19 @@ traverse_line_to_column :: proc(line: ^Line, target_column: int, gravity_enabled
 		if (grapheme_idx + 1 < graphemes_len) {
 			grapheme_idx += 1
 			grapheme = line.graphemes[grapheme_idx]
-			byte_idx = grapheme.byte_index
 		} else if (allow_col_after_end && (col_idx == line.len_columns)) {
-			// NOTE: Unsure if returning -1 for non-valid values is the right thing. For byte_idx it could be len(lines.text) although not a valid index.
-			return -1, line.len_columns, -1, 1
+			// NOTE: Unsure if returning -1 for non-valid values is the right thing. For byte_idx it could be len(line.text) although not a valid index.
+			fmt.println("On call after end.")
+			// return -1, line.len_columns, -1, 1
+			// NOTE: I think it's grapheme_idx + 1
+			return grapheme_idx + 1, line.len_columns, len(line.text), 1
 		} else {
+			fmt.println("Return A.")
 			return grapheme_idx, col_idx, grapheme.byte_index, grapheme.width
 		}
 	}
-	return grapheme_idx, col_idx, byte_idx, grapheme.width
+	fmt.println("Return B.")
+	return grapheme_idx, col_idx, grapheme.byte_index, grapheme.width
 }
 
 split_line_at_cursor :: proc(lines: ^[dynamic]Line, cursor: Cursor) {

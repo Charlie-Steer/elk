@@ -6,22 +6,12 @@ Saving edits:
 
 # On sight:
 
-- Re-implement delete character with new walk-through function.
-
-- Implement append. Specially of note, appending after the line end.
-
-- Replace merge walk-through section with new standarized walk-through-string function.
-
-- BUG: Inserting first character on empty line doesn't move cursor to the right.
-
-- Enter to split lines.
+- BUG: Exiting insert mode doesn't update cursor position to last character in line if no characters to the right.
+- BUG: Splitting line doesn't move cursor to line below. SOLVE ISSUE ABOVE SO IT'S EASIER TO DEBUG!
 
 ---
 
 - Rework text rendering into SDL Text Object system. Unsure if I can call render per word or line.
-
-
-- BUG: Make half-page jumps work.
 
 - BUG: Last line on screen doesn't render.
 - BUG: Index out of range when trying to move beyond bottom line.

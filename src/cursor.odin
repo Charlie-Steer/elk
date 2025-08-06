@@ -42,10 +42,10 @@ Move_Unit :: enum {
 
 clamp_cursor_column :: proc(cursor: ^Cursor, line_width_in_cells: int) {
 	// u.clamp(&cursor.column, 0, line_width_in_cells - 1)
-	fmt.println("BEFORE: ", cursor.column)
-	fmt.println("len_columns: ", lines[cursor.line].len_columns)
+	// fmt.println("BEFORE: ", cursor.column)
+	// fmt.println("len_columns: ", lines[cursor.line].len_columns)
 	u.clamp(&cursor.column, 0, u.get_clamped_min(line_width_in_cells - 1, 0))
-	fmt.println("AFTER: ", cursor.column)
+	// fmt.println("AFTER: ", cursor.column)
 }
 
 // NOTE: This and delete_grapheme are awfully close in implementation.
@@ -96,6 +96,7 @@ safe_move_to_column  :: proc(line_text: string, column: int, graphemes: [dynamic
 	fmt.println("grapheme_count < column_index")
 }
 
+/*
 delete_grapheme :: proc(line_text: string, column: int, graphemes: [dynamic]utf8.Grapheme, direction: Direction) {
 	// if (column == 0) {
 	// 	if len(graphemes) != 0 {
@@ -140,8 +141,62 @@ delete_grapheme :: proc(line_text: string, column: int, graphemes: [dynamic]utf8
 
 	fmt.println("grapheme_count < column_index")
 }
+*/
 
-move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line, cell_amount := 1) {
+delete_grapheme :: proc(line_text: string, column: int, graphemes: [dynamic]utf8.Grapheme, direction: Direction) {
+	if (column == 0 && direction == .LEFT) {
+		return
+	}
+
+	line := &lines[cursor.line]
+
+	prev_grapheme, current_grapheme, next_grapheme: ^utf8.Grapheme
+
+	past_end_of_line: bool
+	if (cursor.column >= line.len_columns) {
+		past_end_of_line = true
+	} else {
+		current_grapheme = &graphemes[cursor.grapheme_location]
+	}
+
+	if direction == .LEFT {
+		prev_grapheme = &graphemes[cursor.grapheme_location - 1]
+
+		remove_range(&lines[cursor.line].text, prev_grapheme.byte_index, cursor.byte_location)
+		cursor.byte_location = prev_grapheme.byte_index
+		cursor.column -= prev_grapheme.width
+		if past_end_of_line {
+			cursor.cell_width = 1
+		} else {
+			cursor.cell_width = current_grapheme.width
+		}
+	} else if direction == .RIGHT {
+		if (cursor.column + cursor.cell_width < line.len_columns) {
+			next_grapheme = &graphemes[cursor.grapheme_location + 1]
+		}
+
+		byte_index_after_grapheme, cursor_cell_width: int 
+		if (next_grapheme != nil) {
+			byte_index_after_grapheme = next_grapheme.byte_index
+			cursor_cell_width = next_grapheme.width
+		} else {
+			byte_index_after_grapheme = len(line_text)
+			cursor_cell_width = 1
+		}
+		remove_range(&lines[cursor.line].text, current_grapheme.byte_index, byte_index_after_grapheme)
+	}
+	update_line_data(&lines[cursor.line])
+	// NOTE: Copy-pasted from move_cursor()
+	update_cursor_text_position_data(allow_col_after_end=true)
+	// cursor.grapheme_location, cursor.column, cursor.byte_location, cursor.cell_width = traverse_line_to_column(&lines[cursor.line], cursor.column, allow_col_after_end=true)
+	update_cursor_in_view(&cursor)
+}
+
+update_cursor_text_position_data :: proc(allow_col_after_end: bool) {
+	cursor.grapheme_location, cursor.column, cursor.byte_location, cursor.cell_width = traverse_line_to_column(&lines[cursor.line], cursor.column, allow_col_after_end)
+}
+
+move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line, cell_amount := 1, allow_col_after_end := false) {
 	#partial switch direction {
 		case .DOWN:
 			cursor.line += cell_amount
@@ -152,7 +207,7 @@ move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line,
 		case .RIGHT:
 			cursor.column += cell_amount
 	}
-	fmt.println("column start: ", cursor.column)
+	// fmt.println("column start: ", cursor.column)
 	clamp_cursor_line :: proc(cursor: ^Cursor, line_count: int) {
 		u.clamp(&cursor.line, 0, line_count)
 	}
@@ -164,34 +219,32 @@ move_cursor :: proc(cursor: ^Cursor, direction: Direction, lines: [dynamic]Line,
 	// graphemes, grapheme_count, _, line_width_in_cells := utf8.decode_grapheme_clusters(line_text, true)
 
 	if (direction == .LEFT || direction == .RIGHT) {
-		clamp_cursor_column(cursor, line.len_columns)
+		clamp_cursor_column(cursor, line.len_columns + (allow_col_after_end ? 1 : 0))
 		cursor.column_in_memory = cursor.column
 	} else if (direction == .DOWN || direction == .UP) {
 		cursor.column = cursor.column_in_memory
-		clamp_cursor_column(cursor, line.len_columns)
+		clamp_cursor_column(cursor, line.len_columns + (allow_col_after_end ? 1 : 0))
 	}
 
-	fmt.println("column before: ", cursor.column)
-	fmt.println("byte before: ", cursor.byte_location)
+	// fmt.println("column before: ", cursor.column)
+	// fmt.println("byte before: ", cursor.byte_location)
 
 
 	gravity_enabled := true
 	if (direction == .RIGHT) {
 		gravity_enabled = false
 	}
-	_, cursor.column, cursor.byte_location, cursor.cell_width = traverse_line_to_column(&lines[cursor.line], cursor.column, gravity_enabled)
+	cursor.grapheme_location, cursor.column, cursor.byte_location, cursor.cell_width = traverse_line_to_column(&lines[cursor.line], cursor.column, gravity_enabled, allow_col_after_end)
 
 	// safe_move_to_column(line_text, cursor.column, line.graphemes, direction)
-	fmt.println("column after: ", cursor.column)
-	fmt.println("byte after: ", cursor.byte_location)
-
-
-	// TODO: MAKE SO IF CURSOR DOESN'T LAND ON FIRST COL OF GRAPHEME, IT CORRECTS TO THE FIRST.
+	// fmt.println("column after: ", cursor.column)
+	// fmt.println("byte after: ", cursor.byte_location)
 
 	// NOTE: update_cursor_in_view() unnecessary if make_view_follow_cursor() based on absolute text location
 	update_cursor_in_view(cursor)
 	make_view_follow_cursor(&view, cursor^)
 	update_cursor_in_view(cursor)
+	fmt.println("cursor.grapheme_location: ", cursor.grapheme_location)
 	// fmt.println("MOVED CURSOR", view.cell_rect.position, cursor.grid_location)
 }
 

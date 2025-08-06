@@ -1,4 +1,5 @@
 package main
+//a
 // 😊😊😊😊a
 // 😊😊😊😊
 // ❤️❤️❤️❤️
@@ -232,17 +233,24 @@ insert_rune_in_line :: proc(line: ^Line, r: rune) {
 	assert(n_bytes > 0 && n_bytes <= 4)
 	fmt.println("\ncursor.column: ", cursor.byte_location);
 	fmt.println("cursor.byte_location: ", cursor.byte_location, "\n");
-	if n_bytes == 1 {
-		inject_at_elem(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0])
-	} else if n_bytes == 2 {
-		inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1])
-	} else if n_bytes == 3 {
-		inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1], rune_bytes[2])
+	line := &lines[cursor.line]
+	if (cursor.byte_location == -1) {
+		append_elem_string(&line.text, string(rune_bytes[:n_bytes]))
 	} else {
-		inject_at_elems(&lines[cursor.line].text, cursor.byte_location, rune_bytes[0], rune_bytes[1], rune_bytes[2], rune_bytes[3])
+		// inject_at_elems(&line.text, cursor.byte_location, ..rune_bytes[:n_bytes])
+		inject_at_elem_string(&line.text, cursor.byte_location, string(rune_bytes[:n_bytes]))
+		// if n_bytes == 1 {
+		// 	inject_at_elem(&line.text, cursor.byte_location, rune_bytes[0])
+		// } else if n_bytes == 2 {
+		// 	inject_at_elems(&line.text, cursor.byte_location, rune_bytes[0], rune_bytes[1])
+		// } else if n_bytes == 3 {
+		// 	inject_at_elems(&line.text, cursor.byte_location, rune_bytes[0], rune_bytes[1], rune_bytes[2])
+		// } else {
+		// 	inject_at_elems(&line.text, cursor.byte_location, rune_bytes[0], rune_bytes[1], rune_bytes[2], rune_bytes[3])
+		// }
 	}
 	update_line_data(&lines[cursor.line])
-	move_cursor(&cursor, .RIGHT, lines, 1)
+	move_cursor(&cursor, .RIGHT, lines, 1, allow_col_after_end=true)
 	fmt.printfln("%v", lines[cursor.line].text)
 	fmt.printfln("%s", lines[cursor.line].text)
 	// fmt.printfln("correct: %v", transmute([]u8)string("día"))

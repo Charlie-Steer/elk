@@ -1,5 +1,6 @@
 elk
 *.ttf
+*.bin
 examples/
 testing/
 edit_playground/

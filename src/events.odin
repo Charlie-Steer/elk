@@ -61,14 +61,20 @@ run_events :: proc() {
 				} else if (e.key.scancode == .S && e.key.mod == sdl.KMOD_LCTRL) {
 					fmt.println("Saving...")
 					combine_lines_into_single_buffer_and_save_file(lines)
-				} else if (e.key.scancode == .I || e.key.scancode == .A) {
+				} else if (e.key.scancode == .I) {
 					sdl.StartTextInput(window.handle);
 					mode = .INSERT
+				} else if e.key.scancode == .A {
+					sdl.StartTextInput(window.handle);
+					mode = .INSERT
+					move_cursor(&cursor, .RIGHT, lines, 1, allow_col_after_end=true)
 				}
 			} else if mode == .INSERT {
 				if e.key.scancode == .CAPSLOCK || e.key.scancode == .ESCAPE {
 					sdl.StopTextInput(window.handle);
 					mode = .NORMAL
+					update_cursor_text_position_data(false)
+					// update_cursor_text_position_data(allow_col_after_end=false)
 				} else if e.key.scancode == .BACKSPACE {
 					fmt.println("PRESSED BACKSPACE!")
 					fmt.println("col: ", cursor.column)
