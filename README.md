@@ -1,3 +1,5 @@
+# Elk
+
 A text editor made from scratch. I wanted to try my hand at making a serious tool, and being a programmer, I decided on a text editor. It's inspired by Vim in the sense that the modal editing model is pretty much the same as it stands, but it is a GUI application, built in the systems programming language Odin and the SDL3 library.
 
 It uses custom UI logic and I implemented Unicode support.
