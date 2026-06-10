@@ -6,7 +6,7 @@ If you are know how to use Vim it will feel relatively familiar. If not it will 
 
 Move cursor with 'h', 'j', 'k' and 'l'. You can scroll with shift plus one of the movement keys. Go into insert mode with 'i' and back to normal mode with 'Escape'. Save with ':' followed by 'w' and 'Enter'. You can exit the application with 'Ctrl' + 'q'. Some other Vim commands are currently supported.
 
-> To run (requires Odin compiler):
+To run (requires Odin compiler):
 
 ```
 Odin run src/
