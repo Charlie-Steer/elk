@@ -13,7 +13,7 @@ If you are know Vim it will feel relatively familiar. If not it will be just as 
 * Scroll: `Shift` + movement key
 * Enter insert mode: `i`
 * Return to normal mode: `Escape`
-* Save file: `:w` + `Enter`
+* Save file: `:`, `w`, `Enter`
 * Quit: `Ctrl + q`
 
 Some other Vim commands are currently supported.
