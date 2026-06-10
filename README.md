@@ -4,9 +4,8 @@ It uses custom UI logic and I implemented Unicode support.
 
 It allows to load a file (path currently hardcoded), edit it, as in adding or removing text and lines, and you can save the edited textfile to disk.
 
-If you are know how to use Vim it will feel relatively familiar. If not it will be just as confusing as Vim.
-
 ## Controls
+If you are know Vim it will feel relatively familiar. If not it will be just as confusing as Vim.
 
 * Move cursor: `h`, `j`, `k`, `l`
 * Scroll: `Shift` + movement key
@@ -17,7 +16,7 @@ If you are know how to use Vim it will feel relatively familiar. If not it will 
 
 Some other Vim commands are currently supported.
 
-# Running:
+## Running:
 Requires Odin compiler.
 
 ```
