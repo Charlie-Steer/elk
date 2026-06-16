@@ -1,26 +1,43 @@
 # Elk
 
-A text editor made from scratch. I wanted to try my hand at making a serious tool, and being a programmer, I decided on a text editor. It's inspired by Vim in the sense that the modal editing model is pretty much the same as it stands, but it is a GUI application, built with the systems programming language Odin and the SDL3 library.
+A GUI text editor written from scratch in Odin using SDL3.
 
-It uses custom UI logic and I implemented Unicode support.
+Elk is a personal project where I wanted to explore building a serious tool from the ground up, and I decided on a text editor. I also wanted to explore the Odin system's programming language, which is a modern alternative to C, and SDL3 which is a low-level windowing, rendering and input management library.
 
-It allows to load a file (path currently hardcoded), edit it, as in adding or removing text and lines, and you can save the edited textfile to disk.
+The editor takes inspiration from Vim’s modal editing model while remaining a graphical application with custom UI logic.
+
+Current implementation includes Unicode support, text editing, line manipulation, file loading, and saving to disk.
+
+## Features
+
+* Vim-inspired modal editing
+* Custom GUI implementation using SDL3
+* Unicode text support
+* Text insertion and deletion
+* Line editing
+* File loading and saving
+
+> **Note:** file loading currently uses a hardcoded path.
 
 ## Controls
-If you are know Vim it will feel relatively familiar. If not it will be just as confusing as Vim.
 
-* Move cursor: `h`, `j`, `k`, `l`
-* Scroll: `Shift` + movement key
-* Enter insert mode: `i`
-* Return to normal mode: `Escape`
-* Save file: `:`, `w`, `Enter`
-* Quit: `Ctrl + q`
+If you are know Vim, it will feel relatively familiar. If not, it will be just as confusing as Vim.
 
-Some other Vim commands are currently supported.
+| Action                | Key                    |
+| --------------------- | ---------------------- |
+| Move cursor           | `h`, `j`, `k`, `l`     |
+| Scroll                | `Shift` + movement key |
+| Enter insert mode     | `i`                    |
+| Return to normal mode | `Escape`               |
+| Save file             | `:`, `w`, `Enter`      |
+| Quit                  | `Ctrl + q`             |
 
-## Running:
-Requires Odin compiler.
+Some additional Vim commands are currently supported.
 
-```
-Odin run src/
+## Running
+
+Requires the Odin compiler.
+
+```sh
+odin run src/
 ```
